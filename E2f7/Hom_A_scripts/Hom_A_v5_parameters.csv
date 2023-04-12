@@ -1,0 +1,2 @@
+human_mouse,Mt_filter,nCount_high,nCount_low,nFeature_high,nFeature_low,PCs,resolution,path_to_doublet_csv,analyses
+mouse,10,50000,0,NA,2500,30,0.8,/wynton/group/reiter/lauren/E2f7_em3/Hom_A/Hom_A_v3_predicted_dubs_v2_clus9_17.csv,basic

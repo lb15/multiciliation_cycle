@@ -1,0 +1,2 @@
+human_mouse,Mt_filter,nCount_high,nCount_low,nFeature_high,nFeature_low,PCs,resolution,path_to_doublet_csv,analyses
+mouse,15,80000,0,NA,3500,30,0.8,/wynton/group/reiter/lauren/Ad36_soupx/Ad36_v2_predicted_dubs_v2_clus8.csv,basic
