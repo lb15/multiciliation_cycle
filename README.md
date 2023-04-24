@@ -1,6 +1,6 @@
 # multiciliation_cycle
 
-Scripts for manuscript titled "A variant cell cycle coordinates multiciliated cell differentiation" currently under review.
+Scripts for manuscript titled "A cell cycle variant coordinates multiciliated cell differentiation".
 
 Raw and processed data is deposited on GEO at GSE228110.
 
