@@ -1,0 +1,2 @@
+human_mouse,Mt_filter,nCount_high,nCount_low,nFeature_high,nFeature_low,PCs,resolution,path_to_doublet_csv,analyses
+mouse,10,NA,0,NA,2750,30,0.8,/wynton/group/reiter/lauren/DMSOB/v4/basic_analysis/doubletfinder/DMSOB_v4_doubletfinder_withclusters_pK0.08_metadata.csv,basic
