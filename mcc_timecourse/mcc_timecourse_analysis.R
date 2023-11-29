@@ -1246,8 +1246,131 @@ for(x in regs){
         dev.off()
 }
 
+################## HEATMAPS for ciliogenesis and cell cycle regulators ########################
+library(stringr)
+library(dplyr)
+library(pheatmap)
+library(scales)
+library(RColorBrewer)
+#genes=read.csv("~/Box Sync/E2f7_paper/multiciation_cycle_genes.csv")
+genes=read.csv("~/Box Sync/E2f7_paper/Heatmap_Genelist_regulators.txt")
+genes=read.csv("~/Box Sync/E2f7_paper/Heatmap_Genelist.txt")
+genes=read.csv("mccs_clean_subset/heatmap_genelist3.csv",header=F)
+
+#genes$Genes.for.heatmap <- str_to_title(genes$Genes.for.heatmap)
+genes$Genes.for.heatmap <- str_to_title(genes$V1)
+
+premat=AverageExpression(sub, group.by = "pseudo_group",features =genes$Gene,assay="RNA")
+
+dat_melt=reshape2::melt(premat)
+
+##thresh genes
+threshed_genes=NULL
+thresh=0.5
+for(x in unique(dat_melt$Var1)){
+        dat_x=dat_melt %>% filter(Var1 == x)
+        bs_dat=dat_x[grep("Cycling*",dat_x$Var2),]
+        bs_sum= sum( bs_dat$value > thresh)
+        mc_dat=dat_x[grep("MCC*",dat_x$Var2),]
+        mc_sum= sum( mc_dat$value > thresh)
+        if(bs_sum | mc_sum > 1){
+                threshed_genes <- c( threshed_genes,x)
+        }
+}
+
+mat=AverageExpression(sub, group.by = "pseudo_group",features =threshed_genes,assay="RNA")
+col_order = c(paste("MCCs",c(1:20),sep=""))
+mat_order=mat$RNA[,match(col_order,colnames(mat$RNA))]
+
+thresh_gene_info=genes[match(threshed_genes,genes$Gene),]
+
+row_anno = as.data.frame(rownames(mat_order))
+rownames(row_anno)<-row_anno$`rownames(mat_order)`
+#row_anno$Function <- ""
+#row_anno$Function[match(thresh_gene_info$Gene,rownames(row_anno))] <- thresh_gene_info$Function
+#row_anno$Function <-as.factor(row_anno$Function)
+
+cc_scores=sub@meta.data %>% 
+        filter(group == "MCCs") %>%
+        group_by(pseudo_group) %>%
+        summarise_at(vars(c(UCell_S,UCell_G2M)),              
+                     list(mean = mean)) 
+
+cc_scores=cc_scores[match(col_order,cc_scores$pseudo_group),]
+cc_scores$s_minmax =rescale(cc_scores$UCell_S_mean)
+cc_scores$g2m_minmax =rescale(cc_scores$UCell_G2M_mean)
+cc_scores=as.data.frame(cc_scores)
+rownames(cc_scores) <- cc_scores$pseudo_group
+
+cc_scores$Pseudo_bin <- c(1:20)
+
+col_anno=cc_scores[,c("Pseudo_bin","s_minmax","g2m_minmax")]
+colnames(col_anno) <- c("Pseudotime Bin", "S score", "G2M score")
+
+### annotation - colors
+vir_col=viridis_pal(option = "C",direction = -1)
+
+colors_anno=vir_col(20)
+names(colors_anno) <- unique(col_anno$`Pseudotime Bin`)
+colors_anno = list(`Pseudotime Bin`=colors_anno)
+
+color_fnc=colorRampPalette(c("#CCFFFF","#330066"))
+color_fnc2=colorRampPalette(c("#CCFFFF","#006600"))
+col_scores=color_fnc(20)
+
+colors_anno[["S score"]]<-col_scores
+colors_anno[["G2M score"]]<-color_fnc2(20)
+
+row_colors=RColorBrewer::brewer.pal(8,"Set2")
+names(row_colors) <- unique(row_anno$Function)
+colors_anno[["Function"]]<-row_colors
+
+data_colors =c("#666666","#6666CC")
+names(data_colors) <-c("E2f7 WT","E2f7 Hom")
+
+colors_anno[["Dataset"]] <- data_colors
+
+#p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,annotation_row = row_anno[,c("Function","cluster"),drop=F],cutree_rows = 8,annotation_col = col_anno,annotation_colors = colors_anno)
+
+p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,drop=F,cutree_rows = 7,annotation_col = col_anno,annotation_colors = colors_anno)
+
+gene_order=cutree(p$tree_row,k=7)
+row_anno$cluster <-NA
+row_anno$cluster[match(names(gene_order),row_anno$`rownames(mat_order)`)]<-gene_order
+
+colors_anno[["cluster"]]<- brewer.pal(7, "Set3")
+
+pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_genes3_clus7_heatmap.pdf",height=10,width=12,useDingbats = F)
+p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,drop=F,cutree_rows = 7,annotation_col = col_anno,annotation_row = row_anno[,"cluster",drop=F],annotation_colors = colors_anno,show_colnames = F)
+dev.off()
 
 
+# for first genes list
+new_order=c(gene_order[gene_order ==5],gene_order[gene_order==1],gene_order[gene_order == 2],gene_order[gene_order==3],gene_order[gene_order==7],gene_order[gene_order==8],gene_order[gene_order==6],gene_order[gene_order==4])
+
+new_order=c(gene_order[gene_order ==8],gene_order[gene_order==1],gene_order[gene_order == 2],gene_order[gene_order==3],gene_order[gene_order==5],gene_order[gene_order==6],gene_order[gene_order==4],gene_order[gene_order==7])
+
+#pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_TF_heatmap.pdf",height=20,width=12,useDingbats = F)
+#p=pheatmap(mat_order[match(names(new_order),rownames(mat_order)),grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = F,annotation_row = row_anno[,c("Function"),drop=F],cutree_rows = 8,annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F,gaps_row = c(10,10+15,25+8,25+8+6,25+8+6+34,25+8+6+34+24,25+8+6+34+24+6,25+8+6+34+24+6+7))
+#dev.off()
+
+colors_anno[["cluster"]]<- brewer.pal(8, "Set3")
+
+pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_regulators_heatmap.pdf",height=10,width=12,useDingbats = F)
+p=pheatmap(mat_order[match(names(new_order),rownames(mat_order)),grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = F,cutree_rows = 8,annotation_row = row_anno[,"cluster",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
+dev.off()
+
+pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_regulators_heatmap_hierarchial.pdf",height=10,width=12,useDingbats = F)
+p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = T,annotation_row = row_anno[,"cluster",drop=F],cutree_rows = 8,annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
+dev.off()
+
+pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_long_heatmap.pdf",height=10,width=12,useDingbats = F)
+p=pheatmap(mat_order[match(names(new_order),rownames(mat_order)),grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = F,cutree_rows = 8,annotation_row = row_anno[,"cluster",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
+dev.off()
+
+pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_long_heatmap_hierarchial.pdf",height=10,width=12,useDingbats = F)
+p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = T,cutree_rows = 8,annotation_row = row_anno[,"cluster",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
+dev.off()
 
 ######### print counts and metadata for GEO ##########
 

@@ -587,7 +587,7 @@ cilia=read.csv("~/Documents/Reiter_Seq/CuratedCiliaAndBasalBodyGenes_18.csv",row
 
 cilia_sig=cilia[cilia$Gene.name..Mus.musculus. %in% rownames(full_dat_sig),]
 
-
+sig_dat=full_dat_sig[match(cilia_sig$Gene.name..Mus.musculus.,rownames(full_dat_sig)),]
 ###################### FIGURE MAKING ########################
 
 
@@ -627,13 +627,15 @@ dev.off()
 library(EnhancedVolcano)
 clus2=read.csv("mccs_clean/E2f7_em3_mcc_clean_DESeq_genes_Hom_vs_WT_clus2.csv",row.names=2)
 
+gene_labels=c("Gins2","Hells","Mcm4","Mcm7","Stmn1","Pcna","Mcm3","Cdt1","E2f1","Mcm5")
+
 pdf("mccs_clean/E2f7_em3_mccs_clean_DESeq_volcano.pdf",height=6,width=9,useDingbats = F)
 EnhancedVolcano(clus2,
-                lab=rownames(clus2),FCcutoff = log2(1.5),
+                lab=rownames(clus2),FCcutoff = log2(1.5),selectLab = gene_labels,
                 x = "log2FoldChange",y = "padj",
                 subtitle = "",titleLabSize = 0,subtitleLabSize = 1,captionLabSize = 0,
                 pointSize = 4,colAlpha = 1,
-                col = c("grey30","grey30","grey30","red2"),
+                col = c("grey30","grey30","grey30","#1b75ba"),
                 drawConnectors = T,
                 gridlines.major = F,gridlines.minor = F)
 dev.off()
@@ -929,7 +931,7 @@ mccs_clean$geno <- "WT"
 mccs_clean$geno[grep("Hom*",mccs_clean$orig.ident)]<-"Hom"
 
 ##print as 1 plot
-gene_dat=FetchData(mccs_clean, c("Mcm3","Mcm5","Hells","Pcna"))
+gene_dat=FetchData(mccs_clean, c("Mcm5","Gins2"))
 
 ## use this list for loop
 gene_dat=FetchData(mccs_clean, c("Espl1","Pttg1","Ccnb1","Rad21","Cdk1","Ccne1","Ccna1", "Ccna2","Nacpd2","Mycl","Deup1","Plk1","Plk4","Ift88","Ift20","Dnah5","Dnah9","Ccp110","Cep164", "Cep83","Stil","Foxj1","Foxn4", "Myb","Mcidas","Gmnc","Rfx2","Rfx3","Cdkn1a","Ccno","E2f7","E2f8","Kif23",
@@ -947,14 +949,16 @@ melted=reshape2::melt(gene_dat_filt,id.vars=c("pseudotime","geno","integrated_sn
 
 melted$geno<-factor(melted$geno,levels=c("WT","Hom"))
 
-pdf("mccs_clean/mccs_clean_pseudotime_vs_gene_lineplots.pdf",height=4,width=6,useDingbats = F)
-ggplot(melted, aes(x=pseudotime,y=value,linetype=geno))+
-        geom_smooth(color="black")+
-        facet_wrap(~variable,scales = "free")+
+pdf("mccs_clean/mccs_clean_pseudotime_vs_gene_lineplots.pdf",height=8,width=6,useDingbats = F)
+ggplot(melted, aes(x=pseudotime,y=value,linetype=geno,color=geno))+
+        geom_smooth()+
+        scale_color_manual(values=c("grey47",mcc_color(5)[3]))+
+        facet_wrap(~variable,scales = "free",ncol = 1)+
         theme_classic()+
         xlab("Pseudotime")+
         ylab("Expression")+
         theme(axis.text=element_text(size=10,color="black"),axis.title=element_text(size=12),strip.background = element_blank())
+        #geom_jitter(aes(x=pseudotime, y=1, color=integrated_snn_res.0.3),height=0.05)
 dev.off()
 
 
@@ -1087,30 +1091,100 @@ supp=cilia %>% select(Gene.Name..Homo.sapiens.,Gene.name..Mus.musculus.,Synonyms
 colnames(supp) <- c("Homo_sapiens","Mus_Musculus","Synonyms","Function")
 write.csv(supp, file="~/Box Sync/E2f7_paper/Supplementary_Table4.csv")
 
-################### CUT & RUN #################
-library(trackplot)
-library(data.table)
-library(ChIPseeker)
+##############################   HEATMAP for DNA Synthesis Gene Expression   ###################################### 
+library(dplyr)
+dna_syn=read.csv("~/Box Sync/E2f7_paper/DNA Synthesis Genes 3.csv")
+deseq=read.csv("~/Box Sync/E2f7_paper/E2f7_DESeq_padj0.05_FC1.5_new_oldCUTRUN_WESTENDORP_genelist.csv")
 
-nls_a="/Volumes/Reiterlab_3/CR45/CR45/CR45_nlsGFP_A/dup.marked.120bp/CR45_nlsGFP_A_henikoff_dupmark_120bp_RPGC.bw"
-nls_b="/Volumes/Reiterlab_3/CR45/CR45/CR45_nlsGFP_B/dup.marked.120bp/CR45_nlsGFP_B_henikoff_dupmark_120bp_RPGC.bw"
-e2f7_a="/Volumes/Reiterlab_3/CR45/CR45/CR45_E2f7GFP_A/dup.marked.120bp/CR45_E2f7GFP_A_henikoff_dupmark_120bp_RPGC.bw"
-e2f7_b="/Volumes/Reiterlab_3/CR45/CR45/CR45_E2f7GFP_B/dup.marked.120bp/CR45_E2f7GFP_B_henikoff_dupmark_120bp_RPGC.bw"
+dna_syn_in = dna_syn %>% filter(dna_syn$Gene %in% deseq$Column1)
 
-bigWigs = c(e2f7_a,e2f7_b,nls_a,nls_b)
+deseq$DNA_Synthesis <- NA
+deseq$DNA_Synthesis[match(dna_syn_in$Gene,deseq$Column1)]<- dna_syn_in$Function.L1
+deseq_dna = deseq %>% filter(!is.na(DNA_Synthesis))
+genes_to_test=c(deseq_dna$Column1)
 
-track_data = track_extract(bigWigs = bigWigs, loci = "chr1:20,817,325-20,821,422")
-track_sum=track_summarize(track_data, c("E2f7GFP","E2f7GFP","nlsGFP","nlsGFP"))
+mat=AverageExpression(subset(mccs_clean,cells = rownames(pseudo_cells)), group.by = "group_pseudo_bin",features = genes_to_test,assay="RNA")
+library(UCell)
 
-pdf("CR_Mcm3.pdf",height=6,width=11,useDingbats = F)
-track_plot(summary_list = track_sum, draw_gene_track = T, gene_model="~/Documents/Reiter_Seq/mm10.refGene.gtf.gz", isGTF = T,groupScaleByCondition = T ,gene_fsize = 2,build = "mm10")
+cc_s=read.csv("~/Documents/Reiter_Seq/s_phase_human_mgi_genes.csv")
+cc_g2m=read.csv("~/Documents/Reiter_Seq/g2m_phase_human_mgi_genes.csv")
+
+sgenes=cc_s$MGI.symbol
+g2mgenes=cc_g2m$MGI.symbol
+
+mccs_clean = AddModuleScore_UCell(mccs_clean,features = list(sgenes,g2mgenes),assay = "RNA") 
+
+library(pheatmap)
+
+col_order = c(paste("WT",c(1:20),sep=""),paste("Hom",c(1:20),sep=""))
+mat_order=mat$RNA[,match(col_order,colnames(mat$RNA))]
+
+
+##normalize min max
+library(scales)
+cc_scores=mccs_clean@meta.data %>% group_by(group_pseudo_bin) %>%
+        summarise_at(vars(c(signature_1_UCell,signature_2_UCell)),              
+                     list(name = mean)) 
+cc_scores=cc_scores[match(col_order,cc_scores$group_pseudo_bin),]
+cc_scores$s_minmax =rescale(cc_scores$signature_1_UCell_name)
+cc_scores$g2m_minmax =rescale(cc_scores$signature_2_UCell_name)
+cc_scores=as.data.frame(cc_scores)
+rownames(cc_scores) <- cc_scores$group_pseudo_bin
+cc_scores$Pseudo_bin <- c(1:20,1:20)
+cc_scores$Dataset <- "E2f7 WT"
+cc_scores$Dataset[21:40]<-"E2f7 Hom"
+
+dna_syn_in=dna_syn[dna_syn$Gene %in% rownames(mat_order),]
+row_anno = as.data.frame(rownames(mat_order))
+rownames(row_anno)<-row_anno$`rownames(mat_order)`
+row_anno$Function <- NA
+row_anno$Function[match(dna_syn_in$Gene,rownames(row_anno))] <- dna_syn_in$Function.L1
+
+col_anno=cc_scores[,c("Dataset","Pseudo_bin","s_minmax","g2m_minmax")]
+colnames(col_anno) <- c("Dataset","Pseudotime Bin", "S score", "G2M score")
+
+vir_col=viridis_pal()
+
+colors_anno=rev(vir_col(20))
+names(colors_anno) <- unique(col_anno$`Pseudotime Bin`)
+colors_anno = list(`Pseudotime Bin`=colors_anno)
+
+color_fnc=colorRampPalette(c("#CCFFFF","#330066"))
+color_fnc2=colorRampPalette(c("#CCFFFF","#006600"))
+col_scores=color_fnc(20)
+
+colors_anno[["S score"]]<-col_scores
+colors_anno[["G2M score"]]<-color_fnc2(20)
+
+anno_row_color=c("palegreen"  ,"lightskyblue3",   "lavenderblush2",  "royalblue1" ,     "olivedrab4"  ,   "deeppink2"  ,     "darkolivegreen1" ,"seagreen3"   , "blue3"  ,   "goldenrod4" ,"mediumpurple3"  , "tomato" ,  "lightsteelblue1" ,"turquoise1"  ,  "deeppink" , "paleturquoise3" , "brown1" )[1:13]
+
+names(anno_row_color) <- unique(dna_syn_in$Function.L1)
+
+colors_anno[["Function"]]<-anno_row_color
+
+data_colors =c("#666666","#6666CC")
+names(data_colors) <-c("E2f7 WT","E2f7 Hom")
+
+colors_anno[["Dataset"]] <- data_colors
+
+pdf("~/Box Sync/E2f7_paper/E2f7_WT_vs_Hom_DE_DNAsyngenes_heatmap.pdf",height=8,width=11,useDingbats = F)
+p=pheatmap(mat_order,cluster_cols = F,scale="row",cutree_rows = 5,gaps_col = 20,annotation_row = row_anno[,"Function",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
 dev.off()
 
-track_data = track_extract(bigWigs = bigWigs, loci = "chr8:75,108,144-75,113,569")
-track_sum=track_summarize(track_data, c("E2f7GFP","E2f7GFP","nlsGFP","nlsGFP"))
+### group by functional category
 
-pdf("CR_Mcm5.pdf",height=6,width=11,useDingbats = F)
-track_plot(summary_list = track_sum, draw_gene_track = T, gene_model="~/Documents/Reiter_Seq/mm10.refGene.gtf.gz", isGTF = T,groupScaleByCondition = T ,gene_fsize = 2,build = "mm10")
+row_anno_order = row_anno[order(row_anno$Function),]
+
+mat_order_fnc = mat_order[match(rownames(row_anno_order),rownames(mat_order)),]
+
+anno_row_color=c("palegreen"  ,"lightskyblue3",   "lavenderblush2",  "royalblue1" ,     "olivedrab4"  ,   "deeppink2"  ,     "darkolivegreen1" ,"seagreen3"   , "blue3"  ,   "goldenrod4" ,"mediumpurple3"  , "tomato" ,  "lightsteelblue1" ,"turquoise1"  ,  "deeppink" , "paleturquoise3" , "brown1" )[1:7]
+
+names(anno_row_color) <- unique(row_anno_order$Function)
+
+colors_anno[["Function"]]<-anno_row_color
+
+pdf("~/Box Sync/E2f7_paper/E2f7_WT_vs_Hom_DE_DNAsyngenes_heatmap_orderfnccat.pdf",height=8,width=11,useDingbats = F)
+p=pheatmap(mat_order_fnc,cluster_cols = F,cluster_rows = F,scale="row",cutree_rows = 5,gaps_col = 20,gaps_row=c(),annotation_row = row_anno_order[,"Function",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
 dev.off()
 
 ####### print count and metadata for GEO ########
