@@ -962,9 +962,12 @@ dev.off()
 ## g2m phase - Kif23, Racgap1, Ect2, Prc1
 ## potential regulators Cdkn1a,Ccno,E2f7
 
+inter=(cut_interval(cycling_basal$tricyclePosition,n=20,labels=F))
+cycling_basal$tricycleBin <- inter
+
 ##use three genes each - across rows
 
-genes=c("Gmnn","Kif23","Cdkn1a","Mcm3","Racgap1","Ccno","Mcm5","Ect2","E2f7")
+genes=c("Gmnn","Kif23","Ccno","Gins2","Racgap1","Cdkn1a","Mcm5","Ect2","E2f7")
 #genes=c("Plk4","Sass6","Deup1")
 
 cyc_gene_avg =AverageExpression(cycling_basal,assay="RNA",features=genes,group.by="tricycleBin")
@@ -1005,6 +1008,25 @@ ggplot(dat_melt, aes(x=tricycleBin,y=(value),color=cells))+
         facet_wrap(~Var1,scale="free",ncol = 3)
 dev.off()  
 }
+
+##### EXAMPLE PSEUDOTIME PLOTS WITH DOTS #######
+library(reshape2)
+genes=c("Myb","Foxj1","Deup1")
+DefaultAssay(only_mccs) <- "RNA"
+
+dat=FetchData(only_mccs, genes)
+dat$pseudotime <- only_mccs$pseudotime
+dat$clus <- only_mccs$integrated_snn_res.0.2
+
+pdf(paste0("v3/mccs_clean_subset/mccs_clean_Deup1_vs_pseudotime_dots.pdf"),height=4,width=8,useDingbats = F)
+ggplot(dat %>% filter(!is.na(pseudotime)), aes(x=pseudotime,y=Deup1))+
+        geom_point(aes(color=clus))+
+        geom_smooth(color="black")+
+        scale_color_manual(values=c("#009245",mcc_color(6)[c(6,2,4)],"black"))+
+        theme_classic()+
+        theme(legend.position = "none")
+ dev.off()      
+
 
 ################ E2f7 EXPRESSION #####################
 library(cowplot)
@@ -1054,6 +1076,42 @@ c_leg=get_legend(c)
 pdf("v3/cycling_basal_subset/cycling_basal_E2f7_legendexpression.pdf",height=4,width=3,useDingbats = F)
 grid.newpage()
 grid.draw(c_leg)
+dev.off()
+
+################### E2f8 EXPRESSION #############################
+library(viridis)
+library(ggplot2)
+library(cowplot)
+library(grid)
+DefaultAssay(only_mccs) <- "RNA"
+
+pdf("mccs_clean_subset/mccs_clean_E2f8_expression.pdf",height=8,width=11,useDingbats = F)
+FeaturePlot(only_mccs, "E2f8",pt.size=2.5,order=T, max.cutoff = "q99") +  scale_x_reverse() + theme_void() + scale_color_viridis() + theme(title = element_blank(),legend.position = "none")
+dev.off()
+
+m=FeaturePlot(only_mccs, "E2f8",pt.size=2,order=T, max.cutoff = "q99") +  scale_x_reverse() + theme_void() + scale_color_viridis() + theme(title = element_blank())
+
+m_leg=get_legend(m)
+
+pdf("mccs_clean_subset/mccs_clean_E2f8_legendexpression.pdf",height=4,width=3,useDingbats = F)
+grid.newpage()
+grid.draw(m_leg)
+dev.off()
+
+## cycling basal cells
+DefaultAssay(cycling_basal) <- "RNA"
+
+pdf("cycling_basal_subset/cycling_basal_E2f8_expression.pdf",height=8,width=11,useDingbats = F)
+FeaturePlot(cycling_basal, "E2f8",pt.size=2.5,order=T, max.cutoff = "q99") +  scale_y_reverse() + theme_void() + scale_color_viridis() + theme(title = element_blank(),legend.position = "none")
+dev.off()
+
+m=FeaturePlot(cycling_basal, "E2f8",pt.size=2,order=T, max.cutoff = "q99") +  scale_y_reverse() + theme_void() + scale_color_viridis() + theme(title = element_blank())
+
+m_leg=get_legend(m)
+
+pdf("cycling_basal_subset/cycling_basal_E2f8_legendexpression.pdf",height=4,width=3,useDingbats = F)
+grid.newpage()
+grid.draw(m_leg)
 dev.off()
 
 ###################### S and G2M SCORES ##########################
@@ -1189,6 +1247,8 @@ for(x in regs){
 }
 
 
+
+
 ######### print counts and metadata for GEO ##########
 
 DimPlot(seur, label=T,group.by="integrated_snn_res.0.3")
@@ -1299,4 +1359,86 @@ for(x in ccgenes$x[ccgenes$x %in% rownames(only_mccs[["RNA"]]@data)]){
                       xlab("Pseudotime"))
         dev.off()
 }
+
+####### Gene groups over pseudotime ###
+library(scales)
+selectgenes=c("Ccnd1","Cdk4","Cdk6")
+
+   
+dat=FetchData(only_mccs, vars=selectgenes)
+dat$pseudotime =only_mccs$pseudotime
+dat$clusters=only_mccs$integrated_snn_res.0.2
+dat_melt=reshape2::melt(dat,id.vars = c("pseudotime","clusters"))
+
+
+p1=ggplot(dat_melt %>% filter(!is.na(dat_melt$pseudotime)), aes(x=pseudotime,y=value,color=variable))+
+        geom_smooth()+
+        theme_classic()+
+        xlab("Pseudotime")+
+        geom_jitter(aes(x=pseudotime,y=1.2,color=clusters),height=0.05)+
+        scale_color_manual(values=c(only_mccs_col,c("red","blue","green")))
+
+pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_withclusterid.pdf",height=4,width=5,useDingbats = F)
+p1
+dev.off()
+
+p1dat=ggplot_build(p1)   
+
+linedat=p1dat$data[[1]]
+ccnd1dat=linedat %>% filter(colour == "red")
+ccnd1dat$y_rescale=rescale(ccnd1dat$y)
+cdk4dat=linedat %>% filter(colour == "blue")
+cdk4dat$y_rescale = rescale(cdk4dat$y)
+cdk6dat=linedat %>% filter(colour == "green")
+cdk6dat$y_rescale = rescale(cdk6dat$y)
+
+newdat=rbind(ccnd1dat,cdk4dat)
+newdat=rbind(newdat,cdk6dat)
+
+newdat$gene = "Ccnd1"
+newdat$gene[newdat$colour == "blue"] <- "Cdk4"
+newdat$gene[newdat$colour == "green"] <- "Cdk6"
+
+pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_norm_vs_pseudotime.pdf",height=4,width=5,useDingbats = F)
+ggplot(newdat, aes(x=x,y=y_rescale,color=gene))+
+        geom_line(linewidth=1)+
+        theme_classic()+
+        ylab("Normalized Gene Expression")+
+        xlab("Pseudotime")
+dev.off()
+
+#selectgenes=c("Ccnd1","Cdk4","Cdk6")
+selectgenes=c("Cdk4","Cdk2","Cdk1","Cdk5")
+   
+dat_full=FetchData(only_mccs, vars=selectgenes)
+dat_full$pseudotime =only_mccs$pseudotime
+dat_full$clusters=only_mccs$integrated_snn_res.0.2
+
+dat_rescale=dat_full %>% filter(!is.na(dat_full$pseudotime))
+
+dat=as.data.frame(dat_rescale)
+dat_for_scaling=dat[,!colnames(dat) %in% "clusters"]
+
+for(x in 1:length(colnames(dat_for_scaling))){
+       dat_for_scaling[,x] <- rescale(dat_for_scaling[,x]) 
+}
+
+
+dat_for_scaling$pseudotime <- dat_rescale$pseudotime
+dat_for_scaling$clusters <- dat_rescale$clusters
+
+dat_melt=reshape2::melt(dat_for_scaling,id.vars = c("pseudotime","clusters"))
+        
+        #pdf(paste0("v3/mccs_clean_subset/mccs_clean_Ccnd1_Cdk4_Cdk6_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
+        
+pdf(paste0("v3/mccs_clean_subset/mccs_clean_Cdks_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
+
+ggplot(dat_melt, aes(x=pseudotime,y=value,color=variable))+
+        geom_smooth()+
+        theme_classic()+
+        xlab("Pseudotime")+
+        geom_jitter(aes(x=pseudotime,y=max(value)+0.5,color=clusters),height=0.05)+
+        scale_color_manual(values=c(only_mccs_col,c("red","blue","green","grey17")))
+dev.off()
+
 
