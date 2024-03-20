@@ -666,7 +666,7 @@ for(gene in gene_list){
         tmp$pseudotime_mcc = seur$pseudotime_mcc
         tmp$treatment<-seur$treatment
         tmp$clusters <- (seur$integrated_snn_res.0.3)
-        ### why fuck can ggplot not manage to order the clusters properly even when factor levels are ordered
+        
         
         colors2=c("#009245","#F7A12D","grey17","indianred",mcc_color(5)[3],"darkgoldenrod","#998675",mcc_color(5)[1],"#996699","plum",mcc_color(5)[5])
         
@@ -794,18 +794,88 @@ props.pseudo$Ribo_vs_DMSO_C <- props.pseudo$RiboC/props.pseudo$DMSOC
 
 props.pseudo$clusters=rownames(props.pseudo)
 
-
+props.pseudo=props.pseudo %>% mutate(cluster_names=recode(clusters,
+                                                          `1`="Basal stem",
+                                                          `2`="Secretory",
+                                                          `3`="Multiciliated 2",
+                                                          `4`="Tnfrsf12a+",
+                                                          `5`="Nupr1+",
+                                                          `6`="Multiciliated 1",
+                                                          `7`="Proliferating",
+                                                          `8`="Neuroendocrine",
+                                                          `9`="Multiciliated 3",
+                                                          `0`="Intermediate",
+                                                          `10`="Krt14+ basal stem"
+))
 melt_prop=reshape2::melt(props.pseudo[,c(10,grep("Ribo_vs_DMSO*",colnames(props.pseudo)))])
 
 melt_prop$log2FC = log2(melt_prop$value)
+
+melt_prop=melt_prop %>% mutate(cluster_names=recode(clusters,
+                                                    `1`="Basal stem",
+                                                    `2`="Secretory",
+                                                    `3`="Multiciliated 2",
+                                                    `4`="Tnfrsf12a+",
+                                                    `5`="Nupr1+",
+                                                    `6`="Multiciliated 1",
+                                                    `7`="Proliferating",
+                                                    `8`="Neuroendocrine",
+                                                    `9`="Multiciliated 3",
+                                                    `0`="Intermediate",
+                                                    `10`="Krt14+ basal stem"
+))
 
 
 melt_prop_agg= melt_prop %>% 
         group_by(clusters) %>%
         summarise(mean_log2FC=mean(log2FC),sd=sd(log2FC),flcse=sd/sqrt(n()))
 
+melt_prop_agg=melt_prop_agg %>% mutate(cluster_names=recode(clusters,
+                                                            `1`="Basal stem",
+                                                            `2`="Secretory",
+                                                            `3`="Multiciliated 2",
+                                                            `4`="Tnfrsf12a+",
+                                                            `5`="Nupr1+",
+                                                            `6`="Multiciliated 1",
+                                                            `7`="Proliferating",
+                                                            `8`="Neuroendocrine",
+                                                            `9`="Multiciliated 3",
+                                                            `0`="Intermediate",
+                                                            `10`="Krt14+ basal stem"
+))
 
+write.csv(props.pseudo, file="v1/Ribo_int_v1_props_pseudo.csv")
+write.csv(melt_prop_agg, file="v1/Ribo_int_v1_props_se_plot.csv")
 pdf("v1/Ribo_int_v1_Ribo_DMSO_proportions_speckle_sebars.pdf",height=6,width=6,useDingbats = F)
+
+pdf("v1/Ribo_int_v1_celltypeproporation_reps_mean_se.pdf",height=8,width=8,useDingbats = F)        
+ggplot() +
+        geom_bar(data = melt_prop_agg, aes(x = clusters, y = mean_log2FC, fill = clusters), stat = "identity") +
+        geom_point(data = melt_prop, aes(x = clusters, y = log2FC, group = clusters), position = position_dodge2(width = 0.9), size = 4, color = "black") +
+        geom_errorbar(data = melt_prop_agg, aes(x = clusters, ymin = mean_log2FC - flcse, ymax = mean_log2FC + flcse), linewidth = 1, width = 0.7, position = position_dodge(width = 0.9)) +
+        geom_hline(yintercept = 0) +
+        scale_fill_manual(values=colors[c(1:2,11,3:10)]) +
+        xlab("") +
+        theme_classic() +
+        theme(axis.text = element_text(color = "black", size = 14))
+dev.off()
+
+
+sub_clus_melt = melt_prop %>% filter(cluster_names %in% c("Basal stem", "Intermediate","Multiciliated 1","Multiciliated 2","Multiciliated 3","Secretory"))
+sub_clus_agg = melt_prop_agg %>% filter(cluster_names %in% c("Basal stem", "Intermediate","Multiciliated 1","Multiciliated 2","Multiciliated 3","Secretory"))
+
+pdf("v1/Ribo_int_v1_celltypeproporation_reps_mean_se.pdf",height=8,width=8,useDingbats = F)        
+ggplot() +
+        geom_bar(data = sub_clus_agg, aes(x = cluster_names, y = mean_log2FC, fill = clusters), stat = "identity") +
+        geom_point(data = sub_clus_melt, aes(x = cluster_names, y = log2FC, group = clusters), position = position_dodge2(width = 0.9), size = 4, color = "black") +
+        geom_errorbar(data = sub_clus_agg, aes(x = cluster_names, ymin = mean_log2FC - flcse, ymax = mean_log2FC + flcse), linewidth = 1, width = 0.7, position = position_dodge(width = 0.9)) +
+        geom_hline(yintercept = 0) +
+        scale_fill_manual(values=colors[c(1:2,3,4,7,10)]) +
+        xlab("") +
+        theme_classic() +
+        theme(axis.text = element_text(color = "black", size = 14))
+dev.off()
+
 ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
         geom_bar(stat="identity")+
         geom_errorbar(aes(x=clusters, ymin=mean_log2FC-flcse, ymax=mean_log2FC+flcse)) +theme_classic()+
@@ -1194,15 +1264,33 @@ props.pseudo$Ribo_vs_DMSO_C <- props.pseudo$RiboC/props.pseudo$DMSOC
 props.pseudo$clusters=rownames(props.pseudo)
 
 props.pseudo$clusters = factor(props.pseudo$clusters, levels=c("G1/G0","S","G2M"))
+write.csv(props.pseudo, file="v1/mccs_int_subset/Ribo_int_v1_mccs_sub_tricyclePhase_proportions_manual_reps.csv")
 
 melt_prop=reshape2::melt(props.pseudo[,c(10,grep("Ribo_vs_DMSO*",colnames(props.pseudo)))])
 
 melt_prop$log2FC = log2(melt_prop$value)
-
+melt_prop$rep <- "A"
+melt_prop$rep[grep("Ribo_vs_DMSO_B",melt_prop$variable)] <- "B"
+melt_prop$rep[grep("Ribo_vs_DMSO_C",melt_prop$variable)] <- "C"
 
 melt_prop_agg= melt_prop %>% 
         group_by(clusters) %>%
         summarise(mean_log2FC=mean(log2FC),sd=sd(log2FC),flcse=sd/sqrt(n()))
+
+
+pdf("v1/mccs_int_subset/Ribo_int_v1_mccs_sub_tricycleproporation_reps_mean_se.pdf",height=8,width=6,useDingbats = F)        
+ggplot() +
+        geom_bar(data = melt_prop_agg, aes(x = clusters, y = mean_log2FC, fill = clusters), stat = "identity") +
+        geom_point(data = melt_prop, aes(x = clusters, y = log2FC, group = clusters), position = position_dodge2(width = 0.9), size = 4, color = "black") +
+        geom_errorbar(data = melt_prop_agg, aes(x = clusters, ymin = mean_log2FC - flcse, ymax = mean_log2FC + flcse), linewidth = 1, width = 0.7, position = position_dodge(width = 0.9)) +
+        geom_hline(yintercept = 0) +
+        scale_fill_manual(values = alpha(c("darkred", "darkblue", "darkgreen"), alpha = 0.8)) +
+        xlab("") +
+        theme_classic() +
+        theme(axis.text = element_text(color = "black", size = 14))
+dev.off()
+
+write.csv(melt_prop_agg, file="v1/mccs_int_subset/Ribo_int_v1_mccs_sub_tricyclePhase_proportions_manual_sebars.csv")
 
 pdf("v1/mccs_int_subset/Ribo_int_v1_mccs_sub_tricyclePhase_proportions_speckle_sebars.pdf",height=6,width=6,useDingbats = F)
 ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
@@ -1212,6 +1300,7 @@ ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
         xlab("Cluster")+
         ylab("Log2 of Ribo/DMSO cluster proportion")
 dev.off()  
+
 
 
 library(speckle)
@@ -1665,3 +1754,119 @@ marks=FindAllMarkers(seur, assay="RNA",only.pos = T)
 marks_ord=marks %>% group_by(cluster) %>% arrange(desc(avg_log2FC),.by_group = T)
 
 write.csv(marks_ord, file="v1/Ribo_int_v1_res0.3_cluster_names_markers.csv")
+
+############# CELL x GENE ##################
+
+## add ontology terms
+new_meta$assay_ontology_term_id <- "EFO:0009922"
+new_meta$cell_type_ontology_term_id <- "CL:0000307"
+new_meta$development_stage_ontology_term_id <-"MmusDv:0000110"
+new_meta$disease_ontology_term_id <- "PATO:0000461"
+new_meta$donor_id <- "na"
+new_meta$is_primary_data <- TRUE
+new_meta$organism_ontology_term_id <-"NCBITaxon:10090"
+new_meta$self_reported_ethnicity_ontology_term_id <- "na"
+new_meta$sex_ontology_term_id <- "unknown"
+new_meta$suspension_type <- "cell"
+new_meta$tissue_type <- "cell culture"
+new_meta$tissue_ontology_term_id <- "UBERON:0001901"
+
+seur_temp=seur
+
+library(sceasy)
+library(reticulate)
+use_condaenv('sceasy')
+dir.create("v1/cellxgene")
+seur_temp@meta.data = new_meta
+sceasy::convertFormat(seur_temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='v1/cellxgene/Ribo_AD03_full.h5ad')
+
+## print out raw cellranger counts for cell x gene
+library(Matrix)
+meta_final=read.csv("/Volumes/ReiterLab4/Ribo_AD03/Ribo_int/v1/GEO/Ribo_int_metadata.csv",row.names=1)
+
+dmsoA_names = rownames(meta_final)[meta_final$orig.ident == "DMSOA"]
+dmsoB_names=rownames(meta_final)[meta_final$orig.ident == "DMSOB"]
+dmsoC_names=rownames(meta_final)[meta_final$orig.ident == "DMSOC"]
+riboA_names=rownames(meta_final)[meta_final$orig.ident == "RiboA"]
+riboB_names=rownames(meta_final)[meta_final$orig.ident == "RiboB"]
+riboC_names=rownames(meta_final)[meta_final$orig.ident == "RiboC"]
+
+dmsoA=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOA_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOA_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOA_barcodes.tsv.gz")
+colnames(dmsoA)=paste0(colnames(dmsoA),"_1")
+dmsoA_sub = dmsoA[,match(dmsoA_names,colnames(dmsoA ))]
+
+dmsoB=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOB_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOB_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOB_barcodes.tsv.gz")
+colnames(dmsoB)=paste0(colnames(dmsoB),"_2")
+dmsoB_sub = dmsoB[,match(dmsoB_names,colnames(dmsoB))]
+
+dmsoC=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOC_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOC_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/DMSOC_barcodes.tsv.gz")
+colnames(dmsoC)=paste0(colnames(dmsoC),"_3")
+dmsoC_sub = dmsoC[,match(dmsoC_names,colnames(dmsoC))]
+
+riboA=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboA_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboA_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboA_barcodes.tsv.gz")
+colnames(riboA)=paste0(colnames(riboA),"_4")
+riboA_sub = riboA[,match(riboA_names,colnames(riboA))]
+
+riboB=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboB_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboB_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboB_barcodes.tsv.gz")
+colnames(riboB)=paste0(colnames(riboB),"_5")
+riboB_sub = riboB[,match(riboB_names,colnames(riboB))]
+
+riboC=ReadMtx("/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboC_matrix.mtx.gz",features="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboC_features.tsv.gz",cells="/Volumes/Reiterlab4/Ribo_AD03/Ribo_int/v1/GEO/RiboC_barcodes.tsv.gz")
+colnames(riboC)=paste0(colnames(riboC),"_6")
+riboC_sub = riboC[,match(riboC_names,colnames(riboC))]
+
+full=cbind(dmsoA_sub,dmsoB_sub,dmsoC_sub,riboA_sub,riboB_sub,riboC_sub)
+
+write(rownames(full), file="v1/cellxgene/Ribo_AD03_full_combined_genes.tsv")
+write(colnames(full), file="v1/cellxgene/Ribo_AD03_full_combined_barcodes.tsv")
+identical(colnames(full),rownames(meta_final))
+
+writeMM(full, "v1/cellxgene/Ribo_AD03_full_combined_rawCR_counts.mtx")
+
+### focused dataset
+sub_mccs=readRDS("v1/mccs_int_subset/Ribo_int_v1_mccs_int_subset.rds")
+DimPlot(sub_mccs, group.by = "res0.2_names")
+
+full_umap =Embeddings(sub_mccs, "umap")
+full_umap[,c("UMAP_2")] <-full_umap[,c("UMAP_2")]*-1
+
+ggplot(as.data.frame(full_umap), aes(x=UMAP_1,y=UMAP_2))+
+        geom_point()
+
+sub_mccs$UMAP_1<-full_umap[,c("UMAP_1")]
+sub_mccs$UMAP_2<-full_umap[,c("UMAP_2")]
+
+cds=readRDS("v1/mccs_int_subset/Ribo_int_v1_mccs_int_subset_monocle.rds")
+ps_df=as.data.frame(pseudotime(cds))
+
+sub_mccs$pseudotime_submccs <-NA
+sub_mccs$pseudotime_submccs[match(rownames(ps_df),rownames(sub_mccs@meta.data))]<-ps_df$`pseudotime(cds)`
+
+columns_to_keep=c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt","UMAP_1","UMAP_2","res0.1_names","treatment","tricyclePosition","tricyclePhase","signature_1_UCell","signature_2_UCell","pseudotime_submccs")
+
+for_printing=sub_mccs@meta.data[,columns_to_keep]
+colnames(for_printing)<-c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt","UMAP_1","UMAP_2","cluster_names","treatment","tricyclePosition","tricyclePhase" ,"S_score_UCell","G2M_score_UCell","pseudotime")
+
+new_meta=for_printing
+new_meta$assay_ontology_term_id <- "EFO:0009922"
+new_meta$cell_type_ontology_term_id <- "CL:0000307"
+new_meta$development_stage_ontology_term_id <-"MmusDv:0000110"
+new_meta$disease_ontology_term_id <- "PATO:0000461"
+new_meta$donor_id <- "na"
+new_meta$is_primary_data <- FALSE
+new_meta$organism_ontology_term_id <-"NCBITaxon:10090"
+new_meta$self_reported_ethnicity_ontology_term_id <- "na"
+new_meta$sex_ontology_term_id <- "unknown"
+new_meta$suspension_type <- "cell"
+new_meta$tissue_type <- "cell culture"
+new_meta$tissue_ontology_term_id <- "UBERON:0001901"
+
+sub_temp=sub_mccs
+
+library(sceasy)
+library(reticulate)
+use_condaenv('sceasy')
+
+sub_temp@meta.data = new_meta
+sceasy::convertFormat(sub_temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='v1/cellxgene/Ribo_AD03_focused.h5ad')
+
