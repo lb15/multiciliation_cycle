@@ -4,7 +4,7 @@ library(Seurat)
 library(ggplot2)
 library(viridis)
 
-###### ####   color palette ##################
+##########   COLORS ##################
 
 mcc_color <- colorRampPalette(c("lightskyblue2", "royalblue4"))
 
@@ -519,9 +519,6 @@ for(x in clusters){
 }
 
 
-## what p-value threshold to choose?
-VlnPlot(mccs_clean, features=c("Mcm3","Hells"),group.by="integrated_snn_res.0.3",split.by="orig.ident")
-
 library(EnhancedVolcano)
 clusters=c("0","1","2","3","4")
 for(clus in clusters){
@@ -570,25 +567,7 @@ full_dat=read.csv("mccs_clean/E2f7_em3_mccs_clean_DESeq_genes_Hom_Vs_WT_allclust
 ## cluster 3=cluster d
 ## cluster 1 = cluster e
 
-
-clus0_sig = clus0 %>% filter(abs(log2FoldChange) > log2(2) & padj < 0.05)
-clus1_sig = clus1 %>% filter(abs(log2FoldChange) > log2(2) & padj < 0.05)
-clus2_sig = clus2 %>% filter(abs(log2FoldChange) > log2(2) & padj < 0.05)
-clus3_sig = clus3 %>% filter(abs(log2FoldChange) > log2(2) & padj < 0.05)
-clus4_sig = clus4 %>% filter(abs(log2FoldChange) > log2(2) & padj < 0.05)
-
-sig_genes =unique(c(rownames(clus0_sig),rownames(clus1_sig),rownames(clus2_sig),rownames(clus3_sig),rownames(clus4_sig)))
-
-full_dat_sig=full_dat[match(sig_genes, rownames(full_dat)),]
-
-### also supplementary Table #3
-cilia=read.csv("~/Documents/Reiter_Seq/CuratedCiliaAndBasalBodyGenes_18.csv",row.names=1)
-
-cilia_sig=cilia[cilia$Gene.name..Mus.musculus. %in% rownames(full_dat_sig),]
-
-sig_dat=full_dat_sig[match(cilia_sig$Gene.name..Mus.musculus.,rownames(full_dat_sig)),]
 ###################### FIGURE MAKING ########################
-
 
 ### UMAP
 setwd("E2f7_em3_merge/v2")
@@ -857,7 +836,7 @@ pdf("mccs_clean/mccs_clean_pseudo_vs_S_or_G2M_score_dots.pdf",height=1,width=4.5
 dots
 dev.off()
 
-########### Cluster S and G2M Scores #############
+########### MEAN S and G2M SCORES #############
 basal_cycling$timecourse_pred <- factor(basal_cycling$timecourse_pred,levels=c(1,5,6))
 ggplot(basal_cycling@meta.data, aes(x=timecourse_pred,y=signature_1_UCell,color=geno))+
         geom_boxplot()
@@ -957,7 +936,7 @@ ggplot(prop_test_melt2[grep("PropMean*",prop_test_melt2$variable),], aes(x=varia
         theme(axis.text = element_text(size=12,color="black"),axis.title=element_text(size=14))
 dev.off()
 
-########### Plot focused datasets back onto original UMAP########
+########### PLOT FOCUSED DATASETS ON ORIGINAL UMAP ########
 
 seur$group <- NA
 seur$group[match(rownames(mccs_clean@meta.data),rownames(seur@meta.data))]<-"MCC"
@@ -989,6 +968,7 @@ gene_dat=FetchData(mccs_clean, c("Espl1","Pttg1","Ccnb1","Rad21","Cdk1","Ccne1",
 "Racgap1","Ect2", "Prc1"))
 
 ##more looping
+## this document info is contained in supplementary table 6
 cilia=read.csv("~/Documents/Reiter_Seq/CuratedCiliaAndBasalBodyGenes_18.csv")
 gene_list=cilia$Gene.name..Mus.musculus.
 gene_dat=FetchData(mccs_clean, gene_list)
@@ -1051,13 +1031,13 @@ for(x in unique(melted$variable)){
         dev.off()
 }
 
-############## Ciliary TF, Basal body ,and ciliogenesis scores #########
+############## TF, CENTRIOLAR AND CILIOGENESIS SCORES #########
 library(UCell)
 library(dplyr)
 library(ggpubr)
 library(scales)
 
-### also info in Supplementary Table 4, printed below
+### also info in Supplementary Table 6, printed below
 cilia=read.csv("~/Documents/Reiter_Seq/CuratedCiliaAndBasalBodyGenes_18.csv")
 
 cilia$Merged_Function2[cilia$Molecular.Function.or.Complex == "Ciliary TF"]="Ciliary TF"
@@ -1140,9 +1120,9 @@ write.csv(means_scores,file="mccs_clean/mccs_clean_ciliogen_basalbody_tfs_means_
 ##write out supp table
 supp=cilia %>% select(Gene.Name..Homo.sapiens.,Gene.name..Mus.musculus.,Synonyms,Merged_Function2)
 colnames(supp) <- c("Homo_sapiens","Mus_Musculus","Synonyms","Function")
-write.csv(supp, file="~/Box Sync/E2f7_paper/Supplementary_Table4.csv")
+write.csv(supp, file="~/Box Sync/E2f7_paper/Supplementary_Table4.csv") ## turns into STable 6
 
-##############################   HEATMAP for DNA Synthesis and Cytoskeletal Gene Expression   ###################################### 
+################ HEATMAP DNA SYNTHESIS and CYTOSKELETAL GENES  #####################
 library(dplyr)
 dna_syn=read.csv("~/Box Sync/E2f7_paper/DNA Synthesis Genes 3.csv")
 deseq=read.csv("~/Box Sync/E2f7_paper/E2f7_DESeq_padj0.05_FC1.5_new_oldCUTRUN_WESTENDORP_genelist.csv")
@@ -1244,7 +1224,7 @@ pdf("~/Box Sync/E2f7_paper/E2f7_WT_vs_Hom_DE_DNAsyngenes_heatmap_orderfnccat.pdf
 p=pheatmap(mat_order_fnc,cluster_cols = F,cluster_rows = F,scale="row",cutree_rows = 5,gaps_col = 20,gaps_row=c(),annotation_row = row_anno_order[,"Function",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
 dev.off()
 
-################### Cytoskeletal Heatmap ###################
+###################  CYTOSKELETAL GENE HEATMAP ###################
 ### cytoskeleton
 
 cyto=read.csv("~/Downloads/gene sets for cytoskeleton.gmt",sep="\t",header = F)
@@ -1309,7 +1289,7 @@ pdf("~/Box Sync/E2f7_paper/E2f7_WT_vs_Hom_cytoskeleton_heatmap.pdf",height=30,wi
 pheatmap(mat_order,cluster_cols=F,scale="row",cutree_rows = 9,gaps_col=20,annotation_row = row_anno[,"Deseq",drop=F],annotation_col=col_anno,annotation_colors = colors_anno,show_colnames = F)
 dev.off()
 
-###################### Make combined heatmap for DNA Synthesis and Cytoskeletal Genes #######
+###################### COMBINED HEATMAP DNA SYNTHESIS AND CYTOSKELETAL GENES #######
 ## Fig. S13a
 ## use plot from DNA Synthesis heatmap and add on DE cytoskeletal genes from above
 row_anno_order ## this is order of genes in prior plot
@@ -1347,7 +1327,6 @@ names(anno_row_color2) <- unique(new_row_anno_order$Function)
 
 colors_anno[["Function"]]<-anno_row_color2
 
-## set scale to prevent outliers from dominating scale
 
 pdf("~/Box Sync/E2f7_paper/E2f7_WT_vs_Hom_DE_DNAsyngenes_cyto_heatmap_ordered.pdf",height=8,width=7,useDingbats = F)
 p=pheatmap(mat_order_fnc2,cluster_cols = F,cluster_rows = F,scale="row",cutree_rows = 5,gaps_col = 20,gaps_row=gaps,annotation_row = new_row_anno_order[,"Function",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F,legend_breaks = c(-3.5,-1.5,0,1.5,3.5))
@@ -1453,7 +1432,7 @@ library(Matrix)
 
 writeMM(seur[["RNA"]]@counts, file="E2f7_GEO_files/E2f7_merge_counts.mtx")
 
-## cellxgene
+######## CELLXGENE ########
 
 new_meta=read.csv("E2f7_GEO_files/temp/E2f7_merge_metadata.csv",row.names = 1)
 identical(rownames(new_meta),rownames(seur@meta.data))
