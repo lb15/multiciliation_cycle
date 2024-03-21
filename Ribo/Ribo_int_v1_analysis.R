@@ -831,6 +831,7 @@ dev.off()
 
 
 ####### SUBSET CELL PROPORTIONS ##########
+sub_mccs=readRDS("v1/mccs_int_subset/Ribo_int_v1_mccs_int_subset.rds")
 
 tab <- table(sub_mccs$orig.ident, sub_mccs$tricyclePhase)
 props <- tab/rowSums(tab)
