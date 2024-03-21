@@ -767,6 +767,33 @@ ggplot(seur@meta.data, aes(x=pseudotime_sec,y=tricyclePosition,color=integrated_
         ylab("Tricycle Position")
 dev.off()
 
+############ SUBSET Basal, int, and MCC clusters ############
+Idents(seur) <- "integrated_snn_res.0.3"
+DimPlot(seur, label=T)
+mccs = subset(seur, idents=c(1,0,3,6,9))
+DimPlot(mccs, label=T)
+
+DefaultAssay(mccs) <- "integrated"
+mccs = ScaleData(mccs)
+mccs=RunPCA(mccs, npcs = 40)
+ElbowPlot(mccs, ndims = 40)
+mccs=RunUMAP(mccs,dims = 1:13)
+mccs=FindNeighbors(mccs, dims = 1:13)
+mccs=FindClusters(mccs,resolution =0.2)
+DimPlot(mccs, label=T,split.by = "treatment")
+
+new_names <- c("Int","Basal","MCC 2","MCC 1","MCC 3")
+names(new_names) <- levels(mccs)
+
+mccs <- RenameIdents(object = mccs, new_names)
+DimPlot(mccs, label = TRUE)
+mccs[["res0.2_names"]] <- Idents(mccs)
+
+dir.create("v1/mccs_subset")
+saveRDS(mccs, file="v1/mccs_subset/Ribo_int_v1_mccs_subset.rds")
+mccs=readRDS("v1/mccs_subset/Ribo_int_v1_mccs_subset.rds")
+
+
 ############### SUBSET only MCCs and Int ##############
 
 
