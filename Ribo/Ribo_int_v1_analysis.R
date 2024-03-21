@@ -236,52 +236,7 @@ s_auc=ggplot(seur@meta.data,aes(x=pseudotime_mcc,y=signature_1_UCell))+
         theme(axis.text=element_text(size=12,color="black"),axis.title.x = element_blank())+
         facet_wrap(~orig.ident) 
 
-ggp_data_s <- ggplot_build(s_auc)$data[[1]]
-
-g2m_aucs = NULL
-
-for(x in 1:6){
-        dat= ggp_data[ggp_data$PANEL == x,]
-        area = MESS::auc(dat$x, dat$y)
-        g2m_aucs = c(g2m_aucs, area)
-}
-
-s_aucs=NULL
-for(x in 1:6){
-        dat= ggp_data_s[ggp_data_s$PANEL == x,]
-        area = MESS::auc(dat$x, dat$y)
-        s_aucs = c(s_aucs, area)
-}
-
-write.csv(s_aucs, file="v1/Ribo_int_v1_s_score_vs_pseudotime_mcc_AUC.csv")
-write.csv(g2m_aucs, file="v1/Ribo_int_v1_g2m_score_vs_pseudotime_mcc_AUC.csv")
-
-ggsave(ggarrange(s,g2m,nrow=2), file = "mccs_clean/E2f7_em3_mccs_clean_S_G2M_score_violin.pdf",width=6,height=6)
-
-png("v1/Ribo_int_v1_sphase_score_vs_pseudotime_mcc.png", height=400,width=600)
-smcc
-dev.off()
-
-png("v1/Ribo_int_v1_G2Mphase_score_vs_pseudotime_mcc.png", height=400,width=600)
-g2mmcc
-dev.off()
-
-sdat=seur@meta.data %>% group_by(integrated_snn_res.0.3,orig.ident) %>% summarise(s_score=mean(signature_1_UCell))
-sdat$treatment = "DMSO"
-sdat$treatment[grep("Ribo*",sdat$orig.ident)]<-"Ribo"
-ggplot(sdat, aes(x=integrated_snn_res.0.3, y=s_score, color=treatment))+
-        geom_boxplot()
-
-g2mdat=seur@meta.data %>% group_by(integrated_snn_res.0.3,orig.ident) %>% summarise(g2m_score=mean(signature_2_UCell))
-g2mdat$treatment = "DMSO"
-g2mdat$treatment[grep("Ribo*",g2mdat$orig.ident)]<-"Ribo"
-ggplot(g2mdat, aes(x=integrated_snn_res.0.3, y=g2m_score, color=treatment))+
-        geom_boxplot()
-
-write.csv(sdat, file="v1/Ribo_int_v1_sphase_meanscores_res0.3.csv")
-write.csv(g2mdat, file="v1/Ribo_int_v1_g2mphase_meanscores_res0.3.csv")
-
-########## Scores over pseudotime #######
+########## Scores over pseudotime 
 ## make 10 equal range sized bins across pseudotime
 seur$pseudotime_mcc_bin = cut_interval(seur$pseudotime_mcc, n=10,labels=F)
 
@@ -308,81 +263,6 @@ ggplot(g2mdat_pseudo, aes(x=as.factor(pseudotime_mcc_bin), y=g2m_score, color=tr
 write.csv(sdat_pseudo, file="v1/Ribo_int_v1_sphase_meanscores_pseudotime_mcc_bin.csv")
 write.csv(g2mdat_pseudo, file="v1/Ribo_int_v1_g2mphase_meanscores_pseudotime_mcc_bin.csv")
 
-####### cell cycle module scoring ######
-library(stringr)
-library(UCell)
-cc_mods=read.table("v1/Cyclebase_Genes.txt",header=T)
-cc_mods$Gene_MGI = str_to_title(cc_mods$Gene)
-
-g1=cc_mods$Gene_MGI[cc_mods$Stage == "G1"]
-s=cc_mods$Gene_MGI[cc_mods$Stage == "S"]
-g2=cc_mods$Gene_MGI[cc_mods$Stage == "G2"]
-m=cc_mods$Gene_MGI[cc_mods$Stage == "M"]
-
-seur = AddModuleScore_UCell(seur,features = list(g1score=g1,sscore=s,g2score=g2,mscore=m),assay = "RNA")
-
-
-png("v1/Ribo_int_g1score.png",height=800,width=1100)
-FeaturePlot(seur,"g1score_UCell",pt.size=1.5,max.cutoff = "q99",order=T) + scale_color_viridis()
-dev.off()
-png("v1/Ribo_int_sscore.png",height=800,width=1100)
-FeaturePlot(seur,"sscore_UCell",max.cutoff = "q99",pt.size = 1.5,order=T) + scale_color_viridis()
-dev.off()
-
-png("v1/Ribo_int_g2mscore.png",height=800,width=1100)
-FeaturePlot(seur,"g2score_UCell",max.cutoff = "q99",pt.size = 1.5,order=T) + scale_color_viridis()
-dev.off()
-png("v1/Ribo_int_mscore.png",height=800,width=1100)
-FeaturePlot(seur,"mscore_UCell",max.cutoff = "q99",pt.size = 1.5,order=T) + scale_color_viridis()
-dev.off()
-
-####### gene plot over psuedotime ######
-
-meta=melt(seur@meta.data[,c("pseudotime_mcc","g1score_UCell","sscore_UCell","g2score_UCell","mscore_UCell","treatment")],id.vars = c("pseudotime_mcc","treatment"))
-
-pdf("v1/Ribo_int_v1_g1_s_g2_m_scores_pseudotime.pdf",height = 11,width=8,useDingbats = F)
-ggplot(meta, aes(x=pseudotime_mcc,y=value,color=treatment))+
-        geom_smooth()+
-        facet_wrap(~variable,ncol = 1,scales="free")+
-        theme_classic()+
-        ylab("Score")+
-        xlab("Pseudotime")
-dev.off()
-
-DefaultAssay(seur) <- "RNA"
-gene_dat=FetchData(seur,unique(c(g1,s)))
-#gene_dat=FetchData(seur, c("Myb","Foxj1"))
-
-gene_dat=cbind(gene_dat, seur@meta.data[,c("treatment","integrated_snn_res.0.3","pseudotime_mcc")])
-
-gene_dat_filt=gene_dat %>% filter(!is.na(pseudotime_mcc))
-melted=reshape2::melt(gene_dat_filt,id.vars=c("pseudotime_mcc","treatment","integrated_snn_res.0.3"))
-
-dir.create("v1/gene_v_pseudotime")
-#for(x in c("Myb","Foxj1")){ 
-for(x in unique(c(g1,s))){
-       pdf(paste0("v1/gene_v_pseudotime/Ribo_int_v1_",x,"_v_pseudotime.pdf"),height=4,width=5.5,useDingbats = F)
-        print(ggplot(melted %>% filter(variable==x), aes(x=pseudotime_mcc,y=value,group=treatment,color=treatment))+
-                geom_smooth()+
-                theme_classic()+
-                ggtitle(x)+
-                ylab("Expression level")+
-                xlab("Pseudotime"))
-        dev.off()
-}
-
-##plots cluster id bars
-
-pdf("v1/gene_v_pseudotime/example_cluster_id.pdf",height=4,width=5.5,useDingbats = F)
-ggplot(melted %>% filter(variable=="Myb"), aes(x=pseudotime_mcc,y=value,group=treatment,color=treatment))+
-        geom_smooth()+
-        theme_classic()+
-        ggtitle(x)+
-        ylab("Expression level")+
-        xlab("Pseudotime")+
-        geom_point(aes(x=pseudotime_mcc,y=3,color=integrated_snn_res.0.3),position = "jitter")+
-        scale_color_manual(values=c(pseudo_mcc,"grey67","black"))
-dev.off()
 
 ########################  DE ANALYSIS ####################### 
 ##will use pseudobulk methods
@@ -638,22 +518,6 @@ rownames(df) <- c("clus0","clus1","clus2","clus3","clus4","clus5","clus6","clus8
 
 write.csv(df, file="v1/Ribo_int_siggenes_updowntotals_padj0.0005_logFC2.csv")
 
-library(UpSetR)
-
-listInput <- list(clus0 = rownames(sig_genes[[1]])[sig_genes[[1]]$dir == "DOWN"],
-                  clus1 = rownames(sig_genes[[2]])[sig_genes[[2]]$dir == "DOWN"],
-                  clus2 = rownames(sig_genes[[3]])[sig_genes[[3]]$dir == "DOWN"],
-                  clus3 = rownames(sig_genes[[4]])[sig_genes[[4]]$dir == "DOWN"],
-                  #clus4 = rownames(sig_genes[[5]])[sig_genes[[5]]$dir == "UP"],
-                  #clus5 = rownames(sig_genes[[6]])[sig_genes[[6]]$dir == "UP"],
-                  clus6 = rownames(sig_genes[[7]])[sig_genes[[7]]$dir == "DOWN"]
-                  #clus8 = rownames(sig_genes[[8]])[sig_genes[[8]]$dir == "UP"]
-                  )
-
-pdf("v1/Ribo_int_v1_upset_UP_logFC2_padj0005.pdf",height=4,width=6,useDingbats = F)
-upset(fromList(listInput),order.by="freq")
-dev.off()
-
 dir.create("v1/pseudotime_mcc_vs_DEgenes")
 
 gene_list = unique(c(rownames(sig_genes[[1]]),rownames(sig_genes[[2]]),rownames(sig_genes[[4]]),rownames(sig_genes[[7]])))
@@ -711,77 +575,7 @@ full_dat=cbind(full_dat,clus10%>% select(-"Krt14_basal_stem_X"))
 write.csv(full_dat, file="v1/Ribo_int_v1_DESeq_genes_Ribo_vs_DMSO_allclusters_named.csv")
 
 
-
-#### Cluster Abundance - https://bioconductor.org/books/3.13/OSCA.multisample/differential-abundance.html
-
-abundances <- table(seur$integrated_snn_res.0.3,seur$orig.ident)
-abundances <- unclass(abundances)
-abundances 
-
-library(edgeR)
-sample_dat=as.data.frame(unclass(table(seur$orig.ident)))
-colnames(sample_dat) <-"cell_num"
-sample_dat$group <- "A"
-sample_dat$group[grep("*B",rownames(sample_dat))]<-"B"
-sample_dat$group[grep("*C",rownames(sample_dat))]<-"C"
-
-sample_dat$treatment <- "DMSO"
-sample_dat$treatment[grep("Ribo*",rownames(sample_dat))]<-"Ribo"
-
-y.ab <- DGEList(abundances, samples=sample_dat)
-keep <- filterByExpr(y.ab, group=y.ab$samples$treatment)
-y.ab <- y.ab[keep,]
-summary(keep)
-
-design <- model.matrix(~factor(group) + factor(treatment), y.ab$samples)
-y.ab <- estimateDisp(y.ab, design, trend="none")
-summary(y.ab$common.dispersion)
-plotBCV(y.ab, cex=1)
-
-fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
-summary(fit.ab$var.prior)
-plotQLDisp(fit.ab, cex=1)
-
-res <- glmQLFTest(fit.ab, coef=ncol(design))
-summary(decideTests(res))
-topTags(res)
-
-write.csv(res$table,file="v1/Ribo_int_1_DA_testing.csv")
-
-### include assumption that most labels do not change to combat composition effects
-
-y.ab2 <- calcNormFactors(y.ab)
-y.ab2$samples$norm.factors
-
-y.ab2 <- estimateDisp(y.ab2, design, trend="none")
-fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
-res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
-topTags(res2, n=10)
-
-write.csv(topTags(res2,n=11), file="v1/Ribo_int_1_DA_calcNormFac_testing.csv")
-
-
-dat=unclass(topTags(res2,n=11))$table
-dat$cluster <- rownames(dat)
-
-dat_gg=melt(dat,id.vars = c("FDR","logFC"),measure.vars = "cluster")
-dat_gg$value <- factor((dat_gg$value),levels=c(0:11))
-
-pdf("v1/Ribo_int_v1_DA_plot.pdf",height=3,width=4,useDingbats = F)
-ggplot(dat_gg, aes(x=logFC,y=FDR, color=value))+
-        geom_vline(xintercept = log2(1.5),linetype=3)+
-        geom_vline(xintercept = -log2(1.5),linetype=3)+
-        geom_hline(yintercept = 0.05,linetype=3)+
-        geom_point(size=4)+
-        scale_color_manual(values=colors)+
-        xlim(c(-7,7))+
-        theme_classic()+
-        xlab("Log2 Fold Change")+
-        ylab("FDR")+
-        theme(axis.text=element_text(size=12,color="black"))
-dev.off()
-
-##### plot log fold changes of proportion ratios for visualization of above results
+########## CELL TYPE PROPORTION ##########
 tab <- table(seur$orig.ident, seur$integrated_snn_res.0.3)
 props <- tab/rowSums(tab)
 props.pseudo <- t((tab + 0.5)/rowSums(tab + 0.5))
@@ -884,7 +678,7 @@ ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
         ylab("Log2 of Ribo/DMSO cluster proportion")
 dev.off()  
 
-#### SPECKLE ####
+######### TEST PROPORTIONS WITH SPECKLE ####
 library(speckle)
 speck = propeller(cluster=seur$integrated_snn_res.0.3,group=seur$treatment,sample=seur$orig.ident)
 
@@ -973,188 +767,7 @@ ggplot(seur@meta.data, aes(x=pseudotime_sec,y=tricyclePosition,color=integrated_
         ylab("Tricycle Position")
 dev.off()
 
-############ SUBSET Basal, int, and MCC clusters ############
-Idents(seur) <- "integrated_snn_res.0.3"
-DimPlot(seur, label=T)
-mccs = subset(seur, idents=c(1,0,3,6,9))
-DimPlot(mccs, label=T)
-
-DefaultAssay(mccs) <- "integrated"
-mccs = ScaleData(mccs)
-mccs=RunPCA(mccs, npcs = 40)
-ElbowPlot(mccs, ndims = 40)
-mccs=RunUMAP(mccs,dims = 1:13)
-mccs=FindNeighbors(mccs, dims = 1:13)
-mccs=FindClusters(mccs,resolution =0.2)
-DimPlot(mccs, label=T,split.by = "treatment")
-
-new_names <- c("Int","Basal","MCC 2","MCC 1","MCC 3")
-names(new_names) <- levels(mccs)
-
-mccs <- RenameIdents(object = mccs, new_names)
-DimPlot(mccs, label = TRUE)
-mccs[["res0.2_names"]] <- Idents(mccs)
-
-dir.create("v1/mccs_subset")
-saveRDS(mccs, file="v1/mccs_subset/Ribo_int_v1_mccs_subset.rds")
-mccs=readRDS("v1/mccs_subset/Ribo_int_v1_mccs_subset.rds")
-
-png("v1/mccs_subset/Ribo_int_v1_mcc_subset_clusters.png",width=800,height=800)
-DimPlot(mccs, label=T,label.size = 12,pt.size = 1.5,group.by="res0.2_names",cols = c(basal_to_mcc_col[c(1,2,5,4,3)]))
-dev.off()
-
-png("v1/mccs_subset/Ribo_int_v1_mcc_subset_tricycle.png",width=800,height=800)
-FeaturePlot(mccs, "tricyclePosition",label=T,label.size = 12,pt.size = 1.5,cols = tricolors)
-dev.off()
-
-####### DA #########
-
-abundances <- table(mccs$res0.2_names,mccs$orig.ident)
-abundances <- unclass(abundances)
-abundances 
-
-library(edgeR)
-sample_dat=as.data.frame(unclass(table(mccs$orig.ident)))
-colnames(sample_dat) <-"cell_num"
-sample_dat$group <- "A"
-sample_dat$group[grep("*B",rownames(sample_dat))]<-"B"
-sample_dat$group[grep("*C",rownames(sample_dat))]<-"C"
-
-sample_dat$treatment <- "DMSO"
-sample_dat$treatment[grep("Ribo*",rownames(sample_dat))]<-"Ribo"
-
-y.ab <- DGEList(abundances, samples=sample_dat)
-keep <- filterByExpr(y.ab, group=y.ab$samples$treatment)
-y.ab <- y.ab[keep,]
-summary(keep)
-
-design <- model.matrix(~factor(group) + factor(treatment), y.ab$samples)
-y.ab <- estimateDisp(y.ab, design, trend="none")
-summary(y.ab$common.dispersion)
-plotBCV(y.ab, cex=1)
-
-fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
-summary(fit.ab$var.prior)
-plotQLDisp(fit.ab, cex=1)
-
-res <- glmQLFTest(fit.ab, coef=ncol(design))
-summary(decideTests(res))
-topTags(res)
-
-write.csv(res$table,file="v1/mccs_subset/Ribo_int_v1_mcc_subset_DA_testing.csv")
-
-### include assumption that most labels do not change to combat composition effects
-
-y.ab2 <- calcNormFactors(y.ab)
-y.ab2$samples$norm.factors
-
-y.ab2 <- estimateDisp(y.ab2, design, trend="none")
-fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
-res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
-topTags(res2, n=10)
-
-write.csv(res2$table, file="v1/mccs_subset/Ribo_int_1_mcc_subset_DA_calcNormFac_testing.csv")
-
-dat=unclass(topTags(res2,n=11))$table
-dat$cluster <- rownames(dat)
-
-dat_gg=melt(dat,id.vars = c("FDR","logFC"),measure.vars = "cluster")
-dat_gg$value <- factor((dat_gg$value))
-
-pdf("v1/mccs_subset/Ribo_int_v1_mcc_subset_DA_plot.pdf",height=3,width=4,useDingbats = F)
-ggplot(dat_gg, aes(x=logFC,y=FDR, color=value))+
-        geom_vline(xintercept = log2(2),linetype=3)+
-        geom_vline(xintercept = -log2(2),linetype=3)+
-        geom_hline(yintercept = 0.05,linetype=3)+
-        geom_point(size=3)+
-        scale_color_manual(values=c(basal_to_mcc_col[c(2,1,4,5,3)]))+
-        xlim(c(-7,7))+
-        theme_classic()+
-        xlab("Log2 Fold Change")+
-        ylab("FDR")+
-        theme(axis.text=element_text(size=12,color="black"))
-dev.off()
-
-
-#### tricycle abundances ####
-
-
-mccs$tricyclePhase <- "G1/G0"
-mccs$tricyclePhase[mccs$tricyclePosition > pi/2 & mccs$tricyclePosition < pi] <- "S"
-mccs$tricyclePhase[mccs$tricyclePosition >=pi & mccs$tricyclePosition < pi*7/4] <- "G2M"
-
-
-DimPlot(mccs, group.by = "tricyclePhase")
-
-abundances <- table(mccs$tricyclePhase,mccs$orig.ident)
-abundances <- unclass(abundances)
-abundances 
-
-library(edgeR)
-sample_dat=as.data.frame(unclass(table(mccs$orig.ident)))
-colnames(sample_dat) <-"cell_num"
-sample_dat$group <- "A"
-sample_dat$group[grep("*B",rownames(sample_dat))]<-"B"
-sample_dat$group[grep("*C",rownames(sample_dat))]<-"C"
-
-sample_dat$treatment <- "DMSO"
-sample_dat$treatment[grep("Ribo*",rownames(sample_dat))]<-"Ribo"
-
-y.ab <- DGEList(abundances, samples=sample_dat)
-keep <- filterByExpr(y.ab, group=y.ab$samples$treatment)
-y.ab <- y.ab[keep,]
-summary(keep)
-
-design <- model.matrix(~factor(group) + factor(treatment), y.ab$samples)
-y.ab <- estimateDisp(y.ab, design, trend="none")
-summary(y.ab$common.dispersion)
-plotBCV(y.ab, cex=1)
-
-fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
-summary(fit.ab$var.prior)
-plotQLDisp(fit.ab, cex=1)
-
-res <- glmQLFTest(fit.ab, coef=ncol(design))
-summary(decideTests(res))
-topTags(res)
-
-write.csv(res$table,file="v1/mccs_subset/Ribo_int_v1_mcc_subset_DA_tricyclePhase_testing.csv")
-
-### include assumption that most labels do not change to combat composition effects
-
-y.ab2 <- calcNormFactors(y.ab)
-y.ab2$samples$norm.factors
-
-y.ab2 <- estimateDisp(y.ab2, design, trend="none")
-fit.ab2 <- glmQLFit(y.ab2, design, robust=TRUE, abundance.trend=FALSE)
-res2 <- glmQLFTest(fit.ab2, coef=ncol(design))
-topTags(res2, n=10)
-
-write.csv(res2$table, file="v1/mccs_subset/Ribo_int_1_mcc_subset_DA_calcNormFac_tricyclePhase_testing.csv")
-
-dat=unclass(topTags(res2,n=11))$table
-dat$cluster <- rownames(dat)
-
-dat_gg=melt(dat,id.vars = c("FDR","logFC"),measure.vars = "cluster")
-dat_gg$value <- factor((dat_gg$value))
-
-binned_col=colorRampPalette(tricolors)(20)
-
-pdf("v1/mccs_subset/Ribo_int_v1_mcc_subset_DA_tricycle_plot.pdf",height=3,width=4,useDingbats = F)
-ggplot(dat_gg, aes(x=logFC,y=FDR, color=value))+
-        geom_vline(xintercept = log2(2),linetype=3)+
-        geom_vline(xintercept = -log2(2),linetype=3)+
-        geom_hline(yintercept = 0.05,linetype=3)+
-        geom_point(size=3)+
-        scale_color_manual(values=c(binned_col[1],binned_col[14],binned_col[8]))+
-        xlim(c(-7,7))+
-        theme_classic()+
-        xlab("Log2 Fold Change")+
-        ylab("FDR")+
-        theme(axis.text=element_text(size=12,color="black"))
-dev.off()
-
-#### SUBSET only MCCs and Int
+############### SUBSET only MCCs and Int ##############
 
 
 sub_mccs = subset(mccs, idents=c("Int","MCC 1","MCC 2","MCC 3"))
@@ -1189,67 +802,8 @@ png("v1/mccs_subset/Ribo_int_v1_mcc_subset_tricycle.png",width=800,height=800)
 FeaturePlot(mccs, "tricyclePosition",label=T,label.size = 12,pt.size = 1.5,cols = tricolors)
 dev.off()
 
-abundances <- table(sub_mccs$tricyclePhase,sub_mccs$orig.ident)
-abundances <- unclass(abundances)
-abundances 
 
-
-library(edgeR)
-sample_dat=as.data.frame(unclass(table(sub_mccs$orig.ident)))
-colnames(sample_dat) <-"cell_num"
-sample_dat$group <- "A"
-sample_dat$group[grep("*B",rownames(sample_dat))]<-"B"
-sample_dat$group[grep("*C",rownames(sample_dat))]<-"C"
-
-sample_dat$treatment <- "DMSO"
-sample_dat$treatment[grep("Ribo*",rownames(sample_dat))]<-"Ribo"
-
-y.ab <- DGEList(abundances, samples=sample_dat)
-keep <- filterByExpr(y.ab, group=y.ab$samples$treatment)
-y.ab <- y.ab[keep,]
-summary(keep)
-
-design <- model.matrix(~factor(group) + factor(treatment), y.ab$samples)
-y.ab <- estimateDisp(y.ab, design, trend="none")
-summary(y.ab$common.dispersion)
-plotBCV(y.ab, cex=1)
-
-fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
-summary(fit.ab$var.prior)
-plotQLDisp(fit.ab, cex=1)
-
-res <- glmQLFTest(fit.ab, coef=ncol(design))
-summary(decideTests(res))
-topTags(res)
-
-write.csv(res$table,file="v1/mccs_int_subset/Ribo_int_v1_mcc_int_subset_DA__Tricycle_testing.csv")
-
-
-dat=unclass(topTags(res,n=11))$table
-dat$cluster <- rownames(dat)
-
-dat_gg=melt(dat,id.vars = c("FDR","logFC"),measure.vars = "cluster")
-dat_gg$value <- factor((dat_gg$value))
-
-pdf("v1/mccs_int_subset/Ribo_int_v1_mcc_int_subset_DA_tricycle_plot.pdf",height=3,width=4,useDingbats = F)
-ggplot(dat_gg, aes(x=logFC,y=FDR, color=value))+
-        geom_vline(xintercept = log2(1.5),linetype=3)+
-        geom_vline(xintercept = -log2(1.5),linetype=3)+
-        geom_hline(yintercept = 0.05,linetype=3)+
-        geom_point(size=4)+
-        scale_color_manual(values=c(binned_col[1],binned_col[14],binned_col[8]))+
-        xlim(c(-7,7))+
-        theme_classic()+
-        xlab("Log2 Fold Change")+
-        ylab("FDR")+
-        theme(axis.text=element_text(size=12,color="black"))
-dev.off()
-
-png("v1/mccs_int_subset/Ribo_int_v1_mccs_int_subset_tricyclePhase.png",height=800,width=800)
-DimPlot(sub_mccs, pt.size=2.5,group.by="tricyclePhase",cols = c(binned_col[1],binned_col[14],binned_col[8]))
-dev.off()
-
-#### plot replicate log fold changes
+####### SUBSET CELL PROPORTIONS ##########
 
 tab <- table(sub_mccs$orig.ident, sub_mccs$tricyclePhase)
 props <- tab/rowSums(tab)
@@ -1301,7 +855,7 @@ ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
         ylab("Log2 of Ribo/DMSO cluster proportion")
 dev.off()  
 
-
+######### SUBSET TEST PROPORTIONS WITH SPECKLE #########
 
 library(speckle)
 speck = propeller(cluster=sub_mccs$tricyclePhase,group=sub_mccs$treatment,sample=sub_mccs$orig.ident)
@@ -1309,7 +863,7 @@ speck = propeller(cluster=sub_mccs$tricyclePhase,group=sub_mccs$treatment,sample
 write.csv(speck, "v1/mccs_int_subset/Ribo_int_v1_mccs_sub_tricyclePhase_proportions_speckle.csv")
 
 
-#### plot S and G2M scores in TricyclePhase
+######## S and G2M Score Plotting #######
 
 meta=sub_mccs@meta.data
 
@@ -1352,7 +906,7 @@ ggplot(meta %>% filter(tricyclePhase =="S"), aes(x=UMAP_1,y=UMAP_2,color=signatu
         theme_classic()+
         scale_color_viridis()
 
-##### MCC INT PSEUDOTIME
+######### SUBSET PSEUDOTIME #######
 
 library(monocle3)
 library(SeuratWrappers)
@@ -1562,48 +1116,8 @@ ggplot(meta, aes(x=pseudotime_submccs,y=value,color=treatment))+
 dev.off()
 
 
-######## AUC scores ########
 
-ggp_s=ggplot(meta %>% filter(score == "S"), aes(x=pseudotime_submccs,y=value,color=treatment))+
-        geom_smooth()+
-        theme_classic()+
-        ylab("Score")+
-        xlab("Pseudotime")+
-        scale_color_manual(values=c("grey30","indianred3"))+
-        facet_wrap(~orig.ident) 
-
-ggp_data_s <- ggplot_build(ggp_s)$data[[1]]
-
-
-s_aucs=NULL
-for(x in 1:6){
-        dat= ggp_data_s[ggp_data_s$PANEL == x,]
-        area = MESS::auc(dat$x, dat$y)
-        s_aucs = c(s_aucs, area)
-}
-
-ggp_g2m=ggplot(meta %>% filter(score == "G2M"), aes(x=pseudotime_submccs,y=value,color=treatment))+
-        geom_smooth()+
-        theme_classic()+
-        ylab("Score")+
-        xlab("Pseudotime")+
-        scale_color_manual(values=c("grey30","indianred3"))+
-        facet_wrap(~orig.ident) 
-
-ggp_data_g2m <- ggplot_build(ggp_g2m)$data[[1]]
-
-
-g2m_aucs=NULL
-for(x in 1:6){
-        dat= ggp_data_g2m[ggp_data_g2m$PANEL == x,]
-        area = MESS::auc(dat$x, dat$y)
-        g2m_aucs = c(g2m_aucs, area)
-}
-
-write.csv(s_aucs, file="v1/mccs_int_subset/Ribo_int_v1_mccs_int_s_score_vs_pseudotime_mcc_AUC.csv")
-write.csv(g2m_aucs, file="v1/mccs_int_subset/Ribo_int_v1_mccs_int_g2m_score_vs_pseudotime_mcc_AUC.csv")
-
-####### gene v pseudotime mccs int subset ######
+####### GENE EXPRESSION v. PSEUDOTIME ######
 
 DefaultAssay(sub_mccs) <- "RNA"
 gene_dat=FetchData(sub_mccs, c("Gmnc","Mycl","Ccne1"))
@@ -1657,7 +1171,7 @@ dat$bin = as.numeric(dat$bin)
 ggplot(dat, aes(x=bin,y=value,color=treatment,group=treatment))+
         geom_line()+
         facet_wrap(~Var1, scales="free")
-####### gene v pseudotime full dataset ######
+####### gene v pseudotime full dataset 
 
 
 DefaultAssay(seur) <- "RNA"
@@ -1682,31 +1196,15 @@ for(x in unique(c(g1,s))){
         dev.off()
 }
 
-### plot average expression of replicates from DESEQ hits
+#### ENRICHED MARKERS ####
 
-seur$cluster_rep = paste(seur$integrated_snn_res.0.3,seur$orig.ident,sep="_")
-
-dat=AverageExpression(seur, assays="RNA",features=c("Mycl","Gmnc","Mcidas","Myb","E2f7"),group.by="cluster_rep")
-
-library(pheatmap)
-PurpleAndYellow()
-
-pdf("v1/Ribo_int_v1_clus0_heatmap.pdf",height=6,width=6,useDingbats = F)
-pheatmap(dat$RNA[,grep("^0_*",colnames(dat$RNA))],scale="row",color = PurpleAndYellow(50))
-dev.off()
-
-pdf("v1/Ribo_int_v1_clus0_heatmap.pdf",height=6,width=6,useDingbats = F)
-pheatmap(dat$RNA[,grep("^6_*",colnames(dat$RNA))],scale="row",color = PurpleAndYellow(50))
-dev.off()
-                 
 DefaultAssay(seur) <- "RNA"
-gene_list=c("Mycl","Ccne1","Gmnc","Mcidas","Myb","E2f7")
-for(gene in gene_list){
-        pdf(paste0("v1/Ribo_int_v1_",gene,"_split.pdf"),height=4,width=11,useDingbats = F)
-        print(FeaturePlot(seur,pt.size=0.5, gene,split.by="treatment",order=T,cols = c("grey17","cyan")) & theme_void())
-        dev.off()
-}
+Idents(seur) <- "cluster_names"
+marks=FindAllMarkers(seur, assay="RNA",only.pos = T)
 
+marks_ord=marks %>% group_by(cluster) %>% arrange(desc(avg_log2FC),.by_group = T)
+
+write.csv(marks_ord, file="v1/Ribo_int_v1_res0.3_cluster_names_markers.csv")
 
 ### GEO METADATA ####
 DimPlot(seur, group.by="integrated_snn_res.0.3",label=T)
@@ -1745,15 +1243,7 @@ library(Matrix)
 writeMM(seur[["RNA"]]@counts, file="v1/GEO/Ribo_int_counts.mtx")
 
 
-#### MARKERS ####
 
-DefaultAssay(seur) <- "RNA"
-Idents(seur) <- "cluster_names"
-marks=FindAllMarkers(seur, assay="RNA",only.pos = T)
-
-marks_ord=marks %>% group_by(cluster) %>% arrange(desc(avg_log2FC),.by_group = T)
-
-write.csv(marks_ord, file="v1/Ribo_int_v1_res0.3_cluster_names_markers.csv")
 
 ############# CELL x GENE ##################
 

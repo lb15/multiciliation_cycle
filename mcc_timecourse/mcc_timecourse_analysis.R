@@ -483,21 +483,6 @@ pdf("v3/mcc_timecourse_tricyclePosition.pdf",height=8,width=11,useDingbats = F)
 FeaturePlot(seur, "tricyclePosition",pt.size=2) + scale_color_gradientn(colors=c("#2E22EA", "#9E3DFB", "#F86BE2", "#FCCE7B", "#C4E416", "#4BBA0F", "#447D87", "#2C24E9")) +theme_void()+theme(legend.position = "none")+ggtitle("")+scale_y_reverse()+scale_x_reverse()
 dev.off()
 
-############ HIGHLIGHT CELLS ON MAIN DATASET #############
-
-seur$cycling_basal_cells <- NA
-seur$cycling_basal_cells[match(colnames(cycling_basal),colnames(seur))]<- "cycling_basal"
-seur$only_mccs <- NA
-seur$only_mccs[match(colnames(only_mccs),colnames(seur))]<- "MCCs"
-
-pdf("v3/cycling_basal_subset/cycling_basal_on_original.pdf",height=8,width=11,useDingbats = F)
-DimPlot(seur,group.by="cycling_basal_cells",pt.size=1.5,raster=T) +scale_color_manual(values="#F7A12D","grey")+theme_void()+theme(legend.position = "none") + ggtitle("")
-dev.off()
-
-pdf("v3/mccs_clean_subset/mccs_clean_on_original.pdf",height=8,width=11,useDingbats = F)
-DimPlot(seur, group.by="only_mccs",pt.size=1.5,)+scale_color_manual(values=mcc_color(6)[3],"grey") + theme_void()+ggtitle("")+theme(legend.position = "none")
-dev.off()
-
 
 ################ Pseudotime vs Tricycle #################
 
@@ -730,8 +715,7 @@ write.csv(heatmap_de, file="v3/mccs_clean_subset/heatmapDEgenes_G1_S_G2M_cycling
 write.csv(heatmap_de,"~/Box Sync/E2f7_paper/Supplementary_Table2.csv")
 
 
-
-##### individual genes over tricycle phase
+##### GENE EXPRESSION VS. TRICYCLE PHASE #####
 
 ## E2f7 and Mcm gene
 genes=c("E2f7","Gmnn","Ranbp1","Mcm2","Mcm3","Mcm4","Mcm5","Mcm6","Mcm7")
@@ -769,9 +753,6 @@ ggplot(dat_melt, aes(x=tricycleBin,y=(value),color=cells))+
         theme(axis.ticks.x = element_blank(), axis.text=element_text(color="black",size=12),axis.title = element_text(color="black",size=14),strip.background = element_blank(),strip.text.x = element_text(size=12,color="black",face = "italic"),legend.position = "top",axis.text.x = element_text(angle = 45,vjust = 0.9,hjust=0.9))+
         facet_wrap(~Var1,scale="free")
 dev.off()  
-
-
-   
 
 
 genes=c(shared_s,shared_g2m)
@@ -1007,7 +988,7 @@ ggplot(dat_melt, aes(x=tricycleBin,y=(value),color=cells))+
         theme(axis.ticks.x = element_blank(), axis.text=element_text(color="black",size=12),axis.title = element_text(color="black",size=14),strip.background = element_blank(),strip.text.x = element_text(size=12,color="black",face = "italic"),legend.position = "top",axis.text.x = element_text(angle = 45,vjust = 0.9,hjust=0.9))+
         facet_wrap(~Var1,scale="free",ncol = 3)
 dev.off()  
-}
+
 
 ##### EXAMPLE PSEUDOTIME PLOTS WITH DOTS #######
 library(reshape2)
@@ -1372,6 +1353,88 @@ pdf("~/Box Sync/E2f7_paper/mcc_timecourse_onlymccs_cellcycle_long_heatmap_hierar
 p=pheatmap(mat_order[,grep("MCC*",colnames(mat_order))],scale="row",cluster_cols = F,cluster_rows = T,cutree_rows = 8,annotation_row = row_anno[,"cluster",drop=F],annotation_col = col_anno,annotation_colors = colors_anno,show_colnames = F)
 dev.off()
 
+
+####### CDK EXPRESSION VS. PSEUDOTIME ###
+library(scales)
+selectgenes=c("Ccnd1","Cdk4","Cdk6")
+
+   
+dat=FetchData(only_mccs, vars=selectgenes)
+dat$pseudotime =only_mccs$pseudotime
+dat$clusters=only_mccs$integrated_snn_res.0.2
+dat_melt=reshape2::melt(dat,id.vars = c("pseudotime","clusters"))
+
+
+p1=ggplot(dat_melt %>% filter(!is.na(dat_melt$pseudotime)), aes(x=pseudotime,y=value,color=variable))+
+        geom_smooth()+
+        theme_classic()+
+        xlab("Pseudotime")+
+        geom_jitter(aes(x=pseudotime,y=1.2,color=clusters),height=0.05)+
+        scale_color_manual(values=c(only_mccs_col,c("red","blue","green")))
+
+pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_withclusterid.pdf",height=4,width=5,useDingbats = F)
+p1
+dev.off()
+
+p1dat=ggplot_build(p1)   
+
+linedat=p1dat$data[[1]]
+ccnd1dat=linedat %>% filter(colour == "red")
+ccnd1dat$y_rescale=rescale(ccnd1dat$y)
+cdk4dat=linedat %>% filter(colour == "blue")
+cdk4dat$y_rescale = rescale(cdk4dat$y)
+cdk6dat=linedat %>% filter(colour == "green")
+cdk6dat$y_rescale = rescale(cdk6dat$y)
+
+newdat=rbind(ccnd1dat,cdk4dat)
+newdat=rbind(newdat,cdk6dat)
+
+newdat$gene = "Ccnd1"
+newdat$gene[newdat$colour == "blue"] <- "Cdk4"
+newdat$gene[newdat$colour == "green"] <- "Cdk6"
+
+pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_norm_vs_pseudotime.pdf",height=4,width=5,useDingbats = F)
+ggplot(newdat, aes(x=x,y=y_rescale,color=gene))+
+        geom_line(linewidth=1)+
+        theme_classic()+
+        ylab("Normalized Gene Expression")+
+        xlab("Pseudotime")
+dev.off()
+
+#selectgenes=c("Ccnd1","Cdk4","Cdk6")
+selectgenes=c("Cdk4","Cdk2","Cdk1","Cdk5")
+   
+dat_full=FetchData(only_mccs, vars=selectgenes)
+dat_full$pseudotime =only_mccs$pseudotime
+dat_full$clusters=only_mccs$integrated_snn_res.0.2
+
+dat_rescale=dat_full %>% filter(!is.na(dat_full$pseudotime))
+
+dat=as.data.frame(dat_rescale)
+dat_for_scaling=dat[,!colnames(dat) %in% "clusters"]
+
+for(x in 1:length(colnames(dat_for_scaling))){
+       dat_for_scaling[,x] <- rescale(dat_for_scaling[,x]) 
+}
+
+
+dat_for_scaling$pseudotime <- dat_rescale$pseudotime
+dat_for_scaling$clusters <- dat_rescale$clusters
+
+dat_melt=reshape2::melt(dat_for_scaling,id.vars = c("pseudotime","clusters"))
+        
+        #pdf(paste0("v3/mccs_clean_subset/mccs_clean_Ccnd1_Cdk4_Cdk6_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
+        
+pdf(paste0("v3/mccs_clean_subset/mccs_clean_Cdks_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
+
+ggplot(dat_melt, aes(x=pseudotime,y=value,color=variable))+
+        geom_smooth()+
+        theme_classic()+
+        xlab("Pseudotime")+
+        geom_jitter(aes(x=pseudotime,y=max(value)+0.5,color=clusters),height=0.05)+
+        scale_color_manual(values=c(only_mccs_col,c("red","blue","green","grey17")))
+dev.off()
+
 ######### print counts and metadata for GEO ##########
 
 DimPlot(seur, label=T,group.by="integrated_snn_res.0.3")
@@ -1462,106 +1525,167 @@ library(Matrix)
 
 writeMM(seur[["RNA"]]@counts, file="GEO_files/mcc_timecourse_counts.mtx")
 
+######### CELLXGENE ########
 
-###
-DefaultAssay(only_mccs) <- "RNA"
-dir.create("v3/mccs_clean_subset/gene_vs_pseudotime")
-cilia_genes=read.csv("~/Documents/Reiter_Seq/CuratedCiliaAndBasalBodyGenes_18.csv")
-ccgenes=read.csv(file="v3/cellcycle_genes_for_DE.csv")
+full_umap =Embeddings(seur, "umap")
+meta = read.csv("GEO_files/mcc_timecourse_metadata.csv",row.names=1)
 
-#for(x in cilia_genes$Gene.name..Mus.musculus.[cilia_genes$Gene.name..Mus.musculus. %in% rownames(only_mccs[["RNA"]]@data)]){
+meta$UMAP_1<-full_umap[,c("UMAP_1")]*-1
+meta$UMAP_2<-full_umap[,c("UMAP_2")]*-1
 
-for(x in ccgenes$x[ccgenes$x %in% rownames(only_mccs[["RNA"]]@data)]){    
-        dat=FetchData(only_mccs, vars=x)
-        colnames(dat)<-"Gene"
-        dat$pseudotime =only_mccs$pseudotime
-        pdf(paste0("v3/mccs_clean_subset/gene_vs_pseudotime/mccs_clean_",x,"_vs_pseudotime.pdf"),height=4,width=6,useDingbats = F)
-        print(ggplot(dat %>% filter(!is.na(dat$pseudotime)), aes(x=pseudotime,y=Gene))+
-                      geom_smooth()+
-                      theme_classic()+
-                      xlab("Pseudotime"))
-        dev.off()
-}
+ggplot(meta,aes(x=UMAP_1,y=UMAP_2))+geom_point()
 
-####### Gene groups over pseudotime ###
-library(scales)
-selectgenes=c("Ccnd1","Cdk4","Cdk6")
-
-   
-dat=FetchData(only_mccs, vars=selectgenes)
-dat$pseudotime =only_mccs$pseudotime
-dat$clusters=only_mccs$integrated_snn_res.0.2
-dat_melt=reshape2::melt(dat,id.vars = c("pseudotime","clusters"))
+identical(rownames(seur@meta.data),rownames(meta))
+seur@meta.data=meta
 
 
-p1=ggplot(dat_melt %>% filter(!is.na(dat_melt$pseudotime)), aes(x=pseudotime,y=value,color=variable))+
-        geom_smooth()+
-        theme_classic()+
-        xlab("Pseudotime")+
-        geom_jitter(aes(x=pseudotime,y=1.2,color=clusters),height=0.05)+
-        scale_color_manual(values=c(only_mccs_col,c("red","blue","green")))
+new_meta=meta[,c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt","UMAP_1","UMAP_2","cluster_names","tricyclePosition","S_score","G2M_score","subset_group")]
 
-pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_withclusterid.pdf",height=4,width=5,useDingbats = F)
-p1
-dev.off()
+new_meta$assay_ontology_term_id <- "EFO:0009922"
+new_meta$cell_type_ontology_term_id <- "CL:0000307"
+new_meta$development_stage_ontology_term_id <-"MmusDv:0000110"
+new_meta$disease_ontology_term_id <- "PATO:0000461"
+new_meta$donor_id <- "na"
+new_meta$is_primary_data <-TRUE
+new_meta$organism_ontology_term_id <-"NCBITaxon:10090"
+new_meta$self_reported_ethnicity_ontology_term_id <- "na"
+new_meta$sex_ontology_term_id <- "unknown"
+new_meta$suspension_type <- "cell"
+new_meta$tissue_type <- "cell culture"
+new_meta$tissue_ontology_term_id <- "UBERON:0001901"
+identical(rownames(new_meta),rownames(seur@meta.data))
+temp=seur
 
-p1dat=ggplot_build(p1)   
+library(sceasy)
+library(reticulate)
+use_condaenv('sceasy')
+dir.create("v3/cellxgene")
+temp@meta.data = new_meta
+sceasy::convertFormat(temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='v3/cellxgene/mcc_timecourse_full.h5ad')
 
-linedat=p1dat$data[[1]]
-ccnd1dat=linedat %>% filter(colour == "red")
-ccnd1dat$y_rescale=rescale(ccnd1dat$y)
-cdk4dat=linedat %>% filter(colour == "blue")
-cdk4dat$y_rescale = rescale(cdk4dat$y)
-cdk6dat=linedat %>% filter(colour == "green")
-cdk6dat$y_rescale = rescale(cdk6dat$y)
+## print out raw cellranger counts for cell x gene
+library(Matrix)
+meta_final=new_meta
 
-newdat=rbind(ccnd1dat,cdk4dat)
-newdat=rbind(newdat,cdk6dat)
-
-newdat$gene = "Ccnd1"
-newdat$gene[newdat$colour == "blue"] <- "Cdk4"
-newdat$gene[newdat$colour == "green"] <- "Cdk6"
-
-pdf("v3/mccs_clean_subset/mcc_timecourse_mccs_clean_Ccnd1_Cdk4_Cdk6_norm_vs_pseudotime.pdf",height=4,width=5,useDingbats = F)
-ggplot(newdat, aes(x=x,y=y_rescale,color=gene))+
-        geom_line(linewidth=1)+
-        theme_classic()+
-        ylab("Normalized Gene Expression")+
-        xlab("Pseudotime")
-dev.off()
-
-#selectgenes=c("Ccnd1","Cdk4","Cdk6")
-selectgenes=c("Cdk4","Cdk2","Cdk1","Cdk5")
-   
-dat_full=FetchData(only_mccs, vars=selectgenes)
-dat_full$pseudotime =only_mccs$pseudotime
-dat_full$clusters=only_mccs$integrated_snn_res.0.2
-
-dat_rescale=dat_full %>% filter(!is.na(dat_full$pseudotime))
-
-dat=as.data.frame(dat_rescale)
-dat_for_scaling=dat[,!colnames(dat) %in% "clusters"]
-
-for(x in 1:length(colnames(dat_for_scaling))){
-       dat_for_scaling[,x] <- rescale(dat_for_scaling[,x]) 
-}
+ad1_names = rownames(meta_final)[meta_final$orig.ident == "Ad1_agg_soupx"]
+ad3_names=rownames(meta_final)[meta_final$orig.ident == "Ad3"]
+ad9_names=rownames(meta_final)[meta_final$orig.ident == "Ad9_soupx"]
+ad36_names=rownames(meta_final)[meta_final$orig.ident == "Ad36_soupx"]
 
 
-dat_for_scaling$pseudotime <- dat_rescale$pseudotime
-dat_for_scaling$clusters <- dat_rescale$clusters
+ad1_agg=ReadMtx("/Volumes/LB_ReiterLab_2/10X_042519/Ad1_agg/filtered_feature_bc_matrix/matrix.mtx.gz",features="/Volumes/LB_ReiterLab_2/10X_042519/Ad1_agg/filtered_feature_bc_matrix/features.tsv.gz",cells="/Volumes/LB_ReiterLab_2/10X_042519/Ad1_agg/filtered_feature_bc_matrix/barcodes.tsv.gz")
+colnames(ad1_agg)=paste0(colnames(ad1_agg),"_1")
+ad1_sub = ad1_agg[,match(ad1_names,colnames(ad1_agg))]
 
-dat_melt=reshape2::melt(dat_for_scaling,id.vars = c("pseudotime","clusters"))
-        
-        #pdf(paste0("v3/mccs_clean_subset/mccs_clean_Ccnd1_Cdk4_Cdk6_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
-        
-pdf(paste0("v3/mccs_clean_subset/mccs_clean_Cdks_vs_pseudotime.pdf"),height=5,width=6,useDingbats = F)
+ad3=ReadMtx("/Volumes/Reiterlab_3/Mycl_ALID03_GEO_files/Ad3_matrix.mtx.gz",features="/Volumes/Reiterlab_3/Mycl_ALID03_GEO_files/Ad3_features.tsv.gz",cells="/Volumes/Reiterlab_3/Mycl_ALID03_GEO_files/Ad3_barcodes.tsv.gz")
+colnames(ad3)=paste0(colnames(ad3),"_2")
+ad3_sub = ad3[,match(ad3_names,colnames(ad3))]
 
-ggplot(dat_melt, aes(x=pseudotime,y=value,color=variable))+
-        geom_smooth()+
-        theme_classic()+
-        xlab("Pseudotime")+
-        geom_jitter(aes(x=pseudotime,y=max(value)+0.5,color=clusters),height=0.05)+
-        scale_color_manual(values=c(only_mccs_col,c("red","blue","green","grey17")))
-dev.off()
+ad9=ReadMtx("/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad9_matrix.mtx.gz",features="/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad9_features.tsv.gz",cells="/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad9_barcodes.tsv.gz")
+colnames(ad9)=paste0(colnames(ad9),"_3")
+ad9_sub = ad9[,match(ad9_names,colnames(ad9))]
+
+ad36=ReadMtx("/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad36_matrix.mtx.gz",features="/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad36_features.tsv.gz",cells="/Volumes/Reiterlab_3/mcc_timecourse/GEO_files/Ad36_barcodes.tsv.gz")
+colnames(ad36)=paste0(colnames(ad36),"_4")
+ad36_sub = ad36[,match(ad36_names,colnames(ad36))]
+
+full=cbind(ad1_sub,ad3_sub,ad9_sub,ad36_sub)
+identical(colnames(full),rownames(meta_final))
+
+write(rownames(full), file="v3/cellxgene/mcc_timecourse_full_combined_genes.tsv")
+write(colnames(full), file="v3/cellxgene/mcc_timecourse_full_combined_barcodes.tsv")
+
+writeMM(full, "v3/cellxgene/mcc_timecourse_full_combined_rawCR_counts.mtx")
+
+### focused datasets
+
+only_mccs=readRDS("v3/mccs_clean_subset/mccs_clean.rds")
+basal_cycling=readRDS("v3/cycling_basal_subset/mcc_timecourse_v3_basal_cycling.rds")
+
+DimPlot(only_mccs,group.by="integrated_snn_res.0.3")
+DimPlot(basal_cycling)
+
+mcc_umap=Embeddings(only_mccs,"umap")
+only_mccs$UMAP_1 =mcc_umap[,c("UMAP_1")]*-1
+only_mccs$UMAP_2=mcc_umap[,c("UMAP_2")]
+
+only_mccs@meta.data=only_mccs@meta.data %>% mutate(multiciliated_cluster_names=recode(integrated_snn_res.0.2,
+                                                                                      `0`="Intermediate",
+                                                                                      `1`="Multiciliated 3",
+                                                                                      `2`="Multciliated 1",
+                                                                                      `3`="Multciliated 2"))
+DimPlot(only_mccs,group.by="multiciliated_cluster_names")
+
+seur_meta= seur@meta.data[match(rownames(only_mccs@meta.data),rownames(seur@meta.data)),]
+
+only_mccs$S_Score_UCell <- seur_meta$signature_1_UCell
+only_mccs$G2M_Score_UCell <- seur_meta$signature_2_UCell
+
+new_meta=only_mccs@meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt","UMAP_1","UMAP_2","multiciliated_cluster_names","tricyclePosition","S_Score_UCell","G2M_Score_UCell","pseudotime")]
 
 
+new_meta$assay_ontology_term_id <- "EFO:0009922"
+new_meta$cell_type_ontology_term_id <- "CL:0000307"
+new_meta$development_stage_ontology_term_id <-"MmusDv:0000110"
+new_meta$disease_ontology_term_id <- "PATO:0000461"
+new_meta$donor_id <- "na"
+new_meta$is_primary_data <-FALSE
+new_meta$organism_ontology_term_id <-"NCBITaxon:10090"
+new_meta$self_reported_ethnicity_ontology_term_id <- "na"
+new_meta$sex_ontology_term_id <- "unknown"
+new_meta$suspension_type <- "cell"
+new_meta$tissue_type <- "cell culture"
+new_meta$tissue_ontology_term_id <- "UBERON:0001901"
+identical(rownames(new_meta),rownames(only_mccs@meta.data))
+temp=only_mccs
+
+library(sceasy)
+library(reticulate)
+use_condaenv('sceasy')
+
+temp@meta.data = new_meta
+sceasy::convertFormat(temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='v3/cellxgene/mcc_timecourse_MCCfocused.h5ad')
+
+basal_umap=Embeddings(basal_cycling,"umap")
+basal_cycling$UMAP_1 <- basal_umap[,c("UMAP_1")]
+basal_cycling$UMAP_2 <- basal_umap[,c("UMAP_2")]*-1
+
+ggplot(basal_cycling@meta.data,aes(x=UMAP_1,y=UMAP_2))+geom_point()
+
+seur_meta_basal= seur@meta.data[match(rownames(basal_cycling@meta.data),rownames(seur@meta.data)),]
+identical(rownames(basal_cycling@meta.data),rownames(seur_meta_basal))
+
+basal_cycling$S_Score_UCell <- seur_meta_basal$signature_1_UCell
+basal_cycling$G2M_Score_UCell <- seur_meta_basal$signature_2_UCell
+
+DimPlot(basal_cycling, group.by="integrated_snn_res.0.3")
+
+res0.1=read.csv("v3/cycling_basal_subset/cycling_basal_res0.1.csv",row.names=1)
+identical(rownames(basal_cycling@meta.data),rownames(res0.1))
+basal_cycling$clusters <- res0.1$integrated_snn_res.0.1
+
+
+new_meta=basal_cycling@meta.data[,c("orig.ident","nCount_RNA","nFeature_RNA","percent.mt","UMAP_1","UMAP_2","clusters","tricyclePosition","S_Score_UCell","G2M_Score_UCell","pseudo_cycling")]
+
+
+new_meta$assay_ontology_term_id <- "EFO:0009922"
+new_meta$cell_type_ontology_term_id <- "CL:0000307"
+new_meta$development_stage_ontology_term_id <-"MmusDv:0000110"
+new_meta$disease_ontology_term_id <- "PATO:0000461"
+new_meta$donor_id <- "na"
+new_meta$is_primary_data <-FALSE
+new_meta$organism_ontology_term_id <-"NCBITaxon:10090"
+new_meta$self_reported_ethnicity_ontology_term_id <- "na"
+new_meta$sex_ontology_term_id <- "unknown"
+new_meta$suspension_type <- "cell"
+new_meta$tissue_type <- "cell culture"
+new_meta$tissue_ontology_term_id <- "UBERON:0001901"
+identical(rownames(new_meta),rownames(basal_cycling@meta.data))
+temp=basal_cycling
+
+library(sceasy)
+library(reticulate)
+use_condaenv('sceasy')
+
+temp@meta.data = new_meta
+sceasy::convertFormat(temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='v3/cellxgene/mcc_timecourse_Basalfocused.h5ad')
