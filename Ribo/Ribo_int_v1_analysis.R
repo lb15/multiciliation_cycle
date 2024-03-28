@@ -678,11 +678,43 @@ ggplot(melt_prop_agg, aes(x=clusters,y=mean_log2FC,fill=clusters))+
         ylab("Log2 of Ribo/DMSO cluster proportion")
 dev.off()  
 
-######### TEST PROPORTIONS WITH SPECKLE ####
-library(speckle)
-speck = propeller(cluster=seur$integrated_snn_res.0.3,group=seur$treatment,sample=seur$orig.ident)
+######### TEST CELL TYPE PROPORTIONS  ####
+#### Cluster Abundance - https://bioconductor.org/books/3.13/OSCA.multisample/differential-abundance.html
 
-write.csv(speck, file="v1/Ribo_int_v1_speckle_DA.cssv")
+abundances <- table(seur$integrated_snn_res.0.3,seur$orig.ident)
+abundances <- unclass(abundances)
+abundances 
+
+library(edgeR)
+sample_dat=as.data.frame(unclass(table(seur$orig.ident)))
+colnames(sample_dat) <-"cell_num"
+sample_dat$group <- "A"
+sample_dat$group[grep("*B",rownames(sample_dat))]<-"B"
+sample_dat$group[grep("*C",rownames(sample_dat))]<-"C"
+
+sample_dat$treatment <- "DMSO"
+sample_dat$treatment[grep("Ribo*",rownames(sample_dat))]<-"Ribo"
+
+y.ab <- DGEList(abundances, samples=sample_dat)
+keep <- filterByExpr(y.ab, group=y.ab$samples$treatment)
+y.ab <- y.ab[keep,]
+summary(keep)
+
+design <- model.matrix(~factor(group) + factor(treatment), y.ab$samples)
+y.ab <- estimateDisp(y.ab, design, trend="none")
+summary(y.ab$common.dispersion)
+plotBCV(y.ab, cex=1)
+
+fit.ab <- glmQLFit(y.ab, design, robust=TRUE, abundance.trend=FALSE)
+summary(fit.ab$var.prior)
+plotQLDisp(fit.ab, cex=1)
+
+res <- glmQLFTest(fit.ab, coef=ncol(design))
+summary(decideTests(res))
+topTags(res)
+
+write.csv(topTags(res,n=11),file="v1/Ribo_int_1_DA_edgeR_testing.csv")
+write.csv(res$table,file="v1/Ribo_int_1_DA_testing.csv")
 
 ###### PSEUDOTIME ######
 library(monocle3)
