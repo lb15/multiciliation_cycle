@@ -324,7 +324,10 @@ g2m=ggplot(mccs_clean@meta.data %>% filter(integrated_snn_res.0.3 %in% c(1:4)),a
 
 ggsave(ggarrange(s,g2m,nrow=2), file = "mccs_clean/E2f7_em3_mccs_clean_S_G2M_score_violin.pdf",width=6,height=6)
 
+mccs_clean$group <- "WT"
+mccs_clean$group[grep("Hom*",mccs_clean$orig.ident)]<-"Hom"
 mccs_clean$group<-factor(mccs_clean$group,levels=c("WT","Hom"))
+
 
 pdf("mccs_clean/E2f7_em3_mccs_clean_S_G2M_featureplots.pdf",height=6,width=8,useDingbats = F)
 FeaturePlot(mccs_clean, features=c("signature_1_UCell","signature_2_UCell"),split.by="group",max.cutoff = "q99",pt.size=1) & theme_void() & scale_y_reverse() &scale_color_viridis() & theme(legend.position="none",strip.background = element_blank(),strip.text.x  = element_text(size=0)) & ggtitle("")
@@ -333,6 +336,32 @@ dev.off()
 
 pdf("mccs_clean/E2f7_em3_mccs_clean_S_G2M_featureplots_legends.pdf",height=6,width=8,useDingbats = F)
 FeaturePlot(mccs_clean, features=c("signature_1_UCell","signature_2_UCell"),split.by="group",max.cutoff = "q99",pt.size=1,raster = T) & theme_void() & scale_y_reverse() &scale_color_viridis() & theme(strip.background = element_blank(),strip.text.x  = element_text(size=0)) & ggtitle("")
+dev.off()
+
+## S and G2M scores over pseudotime
+min_max_normalize <- function(x) {
+        (x - min(x)) / (max(x) - min(x))
+}
+
+gene_dat_filt=mccs_clean@meta.data[!is.na(mccs_clean@meta.data$pseudotime),]
+gene_dat_filt$s_minmax =min_max_normalize(gene_dat_filt$signature_1_UCell)
+gene_dat_filt$g2m_minmax =min_max_normalize(gene_dat_filt$signature_2_UCell)
+
+melted=reshape2::melt(gene_dat_filt[,c("group","pseudotime","s_minmax","g2m_minmax")],id.vars=c("group","pseudotime"))
+
+melted$group<-factor(melted$group,levels=c("WT","Hom"))
+
+
+pdf("mccs_clean/mccs_clean_E2f7_S_G2M_vs_pseudotime.pdf",height=3,width=4,useDingbats = F)
+ggplot(melted, aes(x=pseudotime,y=value,linetype=variable,color=variable))+
+        geom_smooth(se = T,fill="grey19")+
+        scale_color_manual(values=c("#3333CC","#66CC99"))+
+        theme_classic()+
+        xlab("Pseudotime")+
+        ylab("Expression")+
+        theme_classic()+
+        facet_wrap(~group,ncol=1)+
+        theme(axis.text=element_text(size=10,color="black"),axis.title=element_text(size=12),strip.background = element_blank(),legend.position = "none")
 dev.off()
 
 
