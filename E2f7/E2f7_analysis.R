@@ -784,7 +784,7 @@ total_dat=rbind(basal_meta,mccs_meta)
 total_dat$geno<-factor(total_dat$geno,levels=c("WT","Hom"))
 
 pdf("S_Score_basal_MCC_clusters.pdf",height=4,width=8,useDingbats = F)
-ggplot(total_dat, aes(x=clusters,y=signature_1_UCell,color=geno,fill=clusters,pattern=geno))+
+s=ggplot(total_dat, aes(x=clusters,y=signature_1_UCell,color=geno,fill=clusters,pattern=geno))+
         geom_boxplot_pattern(color="black",
                              pattern_fill = "black",
                              pattern_angle = 45,
@@ -801,7 +801,7 @@ ggplot(total_dat, aes(x=clusters,y=signature_1_UCell,color=geno,fill=clusters,pa
 dev.off()
 
 pdf("G2M_Score_basal_MCC_clusters.pdf",height=4,width=8,useDingbats = F)
-ggplot(total_dat, aes(x=clusters,y=signature_2_UCell,color=geno,fill=clusters,pattern=geno))+
+g2m=ggplot(total_dat, aes(x=clusters,y=signature_2_UCell,color=geno,fill=clusters,pattern=geno))+
         geom_boxplot_pattern(color="black",
                              pattern_fill = "black",
                              pattern_angle = 45,
@@ -817,6 +817,12 @@ ggplot(total_dat, aes(x=clusters,y=signature_2_UCell,color=geno,fill=clusters,pa
         theme(axis.text = element_text(size=14,color="black"),axis.title = element_text(size=16))
 dev.off()
 
+s_data=layer_data(s)
+
+write.csv(s_data[,c("pattern","fill","lower","middle","upper")],file="S_Score_basal_MCC_clusters_rawdata.csv")
+
+g2m_data=layer_data(g2m)
+write.csv(g2m_data[,c("pattern","fill","lower","middle","upper")],file="G2M_Score_basal_MCC_clusters_rawdata.csv")
 ### print out rawdata
 
 colnames(total_dat) <- c("S Score","G2/M Score","Replicate","Celltype","Genotype","tricyclePosition","Cluster Name")
@@ -1482,6 +1488,18 @@ new_meta$tissue_ontology_term_id <- "UBERON:0001901"
 sub_temp=seur
 sub_temp$UMAP_1 = sub_temp$UMAP_1*-1
 
+## write out orig.ident and genotype
+
+sub_temp$orig.ident=as.character(sub_temp$orig.ident)
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_A"] <- "E2f7_wildtype_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_B"] <- "E2f7_wildtype_B"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_A"] <- "E2f7_homozygous_knockout_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_B"] <- "E2f7_homozygous_knockout_B"
+
+sub_temp$genotype <- "E2f7_wildtype"
+sub_temp$genotype[grep("E2f7_homozygous*",sub_temp$orig.ident)] <- "E2f7_homozygous_knockout"
+
+write.csv(sub_temp@meta.data[,c("orig.ident","genotype")],file="cellxgene/E2f7_new_orig.ident_genotype.csv")
 library(sceasy)
 library(reticulate)
 use_condaenv('sceasy')
@@ -1563,6 +1581,19 @@ new_meta$tissue_ontology_term_id <- "UBERON:0001901"
 
 sub_temp=mccs_clean
 
+## write out orig.ident and genotype
+
+sub_temp$orig.ident=as.character(sub_temp$orig.ident)
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_A"] <- "E2f7_wildtype_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_B"] <- "E2f7_wildtype_B"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_A"] <- "E2f7_homozygous_knockout_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_B"] <- "E2f7_homozygous_knockout_B"
+
+sub_temp$genotype <- "E2f7_wildtype"
+sub_temp$genotype[grep("E2f7_homozygous*",sub_temp$orig.ident)] <- "E2f7_homozygous_knockout"
+
+write.csv(sub_temp@meta.data[,c("orig.ident","genotype")],file="cellxgene/E2f7_mccfocused_new_orig.ident_genotype.csv")
+
 library(sceasy)
 library(reticulate)
 use_condaenv('sceasy')
@@ -1570,7 +1601,7 @@ use_condaenv('sceasy')
 sub_temp@meta.data = new_meta
 sceasy::convertFormat(sub_temp, assay='RNA', from="seurat", to="anndata", main_layer='data', transfer_layers='counts', drop_single_values=FALSE, outFile='cellxgene/E2f7_AD07_MCCfocused.h5ad')
 
-
+basal_cycling=readRDS("cycling_basal/E2f7_em3_cycling_basal_subset.rds")
 basal_umap=Embeddings(basal_cycling,"umap")
 basal_cycling$UMAP_1<-basal_umap[,c("UMAP_1")]*-1
 basal_cycling$UMAP_2<-basal_umap[,c("UMAP_2")]
@@ -1601,6 +1632,19 @@ new_meta$tissue_type <- "cell culture"
 new_meta$tissue_ontology_term_id <- "UBERON:0001901"
 
 sub_temp=basal_cycling
+
+## write out orig.ident and genotype
+
+sub_temp$orig.ident=as.character(sub_temp$orig.ident)
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_A"] <- "E2f7_wildtype_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="WT_B"] <- "E2f7_wildtype_B"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_A"] <- "E2f7_homozygous_knockout_A"
+sub_temp$orig.ident[sub_temp$orig.ident=="Hom_B"] <- "E2f7_homozygous_knockout_B"
+
+sub_temp$genotype <- "E2f7_wildtype"
+sub_temp$genotype[grep("E2f7_homozygous*",sub_temp$orig.ident)] <- "E2f7_homozygous_knockout"
+
+write.csv(sub_temp@meta.data[,c("orig.ident","genotype")],file="cellxgene/E2f7_basalfocused_new_orig.ident_genotype.csv")
 
 library(sceasy)
 library(reticulate)

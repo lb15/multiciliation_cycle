@@ -1321,7 +1321,15 @@ new_meta$suspension_type <- "cell"
 new_meta$tissue_type <- "cell culture"
 new_meta$tissue_ontology_term_id <- "UBERON:0001901"
 
+## write out Ribociclib to make clearer
 seur_temp=seur
+seur_temp$orig.ident = as.character(seur_temp$orig.ident)
+
+seur_temp$orig.ident[(grepl("RiboA",seur_temp$orig.ident))] <- "RibociclibA"
+seur_temp$orig.ident[(grepl("RiboB",seur_temp$orig.ident))] <- "RibociclibB"
+seur_temp$orig.ident[(grepl("RiboC",seur_temp$orig.ident))] <- "RibociclibC"
+
+write.csv(seur_temp@meta.data[,"orig.ident",drop=F],file="v1/cellxgene/Ribo_new_orig.ident.csv")
 
 library(sceasy)
 library(reticulate)
@@ -1412,6 +1420,16 @@ new_meta$tissue_type <- "cell culture"
 new_meta$tissue_ontology_term_id <- "UBERON:0001901"
 
 sub_temp=sub_mccs
+
+sub_temp$orig.ident = as.character(sub_temp$orig.ident)
+
+sub_temp$orig.ident[(grepl("RiboA",sub_temp$orig.ident))] <- "RibociclibA"
+sub_temp$orig.ident[(grepl("RiboB",sub_temp$orig.ident))] <- "RibociclibB"
+sub_temp$orig.ident[(grepl("RiboC",sub_temp$orig.ident))] <- "RibociclibC"
+
+sub_temp$treatment[(grepl("Ribo",sub_temp$treatment))] <- "Ribociclib"
+
+write.csv(sub_temp@meta.data[,c("orig.ident","treatment"),drop=F],file="v1/cellxgene/Ribo_mccs_new_orig.ident_treatment.csv")
 
 library(sceasy)
 library(reticulate)
