@@ -4,7 +4,7 @@ Scripts for manuscript titled "A cell cycle variant coordinates multiciliated ce
 
 Raw and processed data is deposited on GEO at GSE228110.
 
-R objects referenced in the integrated analysis scripts are posted on Zenodo.
+R objects referenced in the integrated analysis scripts are posted on Zenodo at DOI: 10.5281/zenodo.10892464.
 
 Individual datasets were analyzed with scripts at github.com/lb15/autoSeurat. Folders for each individual dataset contain parameters.csv file for autoSeurat and scripts for doublet identification. 
 
