@@ -1,6 +1,7 @@
 # multiciliation_cycle
 
-Scripts for manuscript titled "A cell cycle variant coordinates multiciliated cell differentiation".
+Scripts for manuscript titled "An alternative cell cycle coordinates
+multiciliated cell differentiation".
 
 Raw and processed data is deposited on GEO at GSE228110.
 
