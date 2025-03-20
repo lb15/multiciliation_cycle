@@ -3,6 +3,7 @@
 Scripts for manuscript titled "An alternative cell cycle coordinates
 multiciliated cell differentiation".
 
+https://www.nature.com/articles/s41586-024-07476-z
 PMID: 38811726 DOI: 10.1038/s41586-024-07476-z
 
 <img width="805" alt="Screen Shot 2025-03-19 at 8 57 25 PM" src="https://github.com/user-attachments/assets/4662f3dc-8fab-4467-affe-db20e9941dfe" />
